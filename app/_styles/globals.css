@@ -1,0 +1,164 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+html {
+  scroll-behavior: smooth;
+}
+
+@layer utilities {
+  .scrollbar-hide::-webkit-scrollbar {
+    display: none;
+  }
+  .scrollbar-hide {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+  }
+}
+
+@layer components {
+  .checkbox {
+    @apply appearance-none
+                  w-5
+                  h-5
+                  rounded-md
+                  border-2
+                  border-accent-pink
+                  checked:bg-accent-pink
+                  checked:border-accent-pink
+                  transition-all
+                  duration-100;
+  }
+
+  .input {
+    @apply w-full rounded-xl border border-stone-200 px-4 py-2 font-black text-black transition-all duration-100
+           focus:outline-none focus:ring focus:ring-secondary
+           focus:border-secondary
+           md:px-6 md:py-3;
+  }
+
+  .spinner {
+    margin: 3.2rem auto 1.6rem;
+    width: 60px;
+    aspect-ratio: 1;
+    border-radius: 50%;
+    border: 8px solid theme("colors.accent.rust");
+    border-right-color: theme("colors.accent.light");
+    animation: rotate 1s infinite linear;
+  }
+
+  .spinner-mini {
+    margin: 0;
+    width: 20px;
+    aspect-ratio: 1;
+    border-radius: 50%;
+    border: 2px solid theme("colors.accent.rust");
+    border-right-color: transparent;
+    animation: rotate 1s infinite linear;
+  }
+
+  .scrollable {
+    cursor: grab;
+  }
+
+  .scrollable:active {
+    cursor: grabbing;
+  }
+
+  @keyframes rotate {
+    to {
+      transform: rotate(1turn);
+    }
+  }
+}
+
+.glossy-button {
+  @apply text-white px-6 py-2 rounded-lg relative overflow-hidden w-40;
+  background-color: #a05adc;
+}
+
+.glossy-button::before {
+  content: "";
+  position: absolute;
+  top: -50%;
+  left: -50%;
+  width: 200%;
+  height: 200%;
+  background: linear-gradient(
+    120deg,
+    rgba(255, 255, 255, 0.4),
+    rgba(160, 90, 220, 0)
+  );
+  transform: rotate(25deg);
+  pointer-events: none;
+  animation: shine 3s infinite;
+}
+
+.glossy-button:hover {
+  background-color: #ba87e6;
+}
+
+@keyframes shine {
+  0% {
+    transform: translateX(-100%) rotate(25deg);
+  }
+  100% {
+    transform: translateX(100%) rotate(25deg);
+  }
+}
+
+.rdp {
+  --rdp-cell-size: 32px !important;
+  --rdp-accent-color: theme("colors.accent.rust") !important;
+  --rdp-background-color: theme("colors.accent.light") !important;
+  margin: 0 !important;
+}
+@layer components {
+  /* https://dev.to/afif/i-made-100-css-loaders-for-your-next-project-4eje */
+
+  .loader {
+    width: 45px;
+    aspect-ratio: 0.75;
+    --c: no-repeat linear-gradient(theme(colors.stone.600));
+    background: var(--c) 0% 50%, var(--c) 50% 50%, var(--c) 100% 50%;
+    background-size: 20% 50%;
+    animation: loading 1s infinite linear;
+  }
+
+  @keyframes loading {
+    20% {
+      background-position: 0% 0%, 50% 50%, 100% 50%;
+    }
+    40% {
+      background-position: 0% 100%, 50% 0%, 100% 50%;
+    }
+    60% {
+      background-position: 0% 50%, 50% 100%, 100% 0%;
+    }
+    80% {
+      background-position: 0% 50%, 50% 50%, 100% 100%;
+    }
+  }
+}
+
+@keyframes borderRun {
+  0% {
+    clip-path: inset(0 100% 100% 0);
+  }
+  25% {
+    clip-path: inset(0 0 100% 0);
+  }
+  50% {
+    clip-path: inset(0 0 0 0);
+  }
+  75% {
+    clip-path: inset(0 0 0 100%);
+  }
+  100% {
+    clip-path: inset(0 100% 100% 100%);
+  }
+}
+
+.animate-border {
+  animation: borderRun 1.5s ease-out forwards;
+}

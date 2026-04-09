@@ -1,4 +1,5 @@
 /** @type {import('tailwindcss').Config} */
+
 module.exports = {
   content: [
     "./pages/**/*.{js,ts,jsx,tsx,mdx}",
@@ -8,8 +9,18 @@ module.exports = {
   theme: {
     extend: {
       colors: {
-        background: "var(--background)",
-        foreground: "var(--foreground)",
+        primary: "#480102",
+        secondary: "#F59E0B",
+        accent: {
+          pink: "#F472B6",
+          rust: "#DFD6C4",
+          light: "#EFEEE5",
+          mango: "#F3DEAA",
+        },
+      },
+      fontFamily: {
+        noto: ["var(--font-noto)"],
+        anton: ["var(--font-anton)"],
       },
     },
   },
