@@ -1,27 +1,22 @@
 "use client";
-import Image from "next/image";
 import Button from "./_components/Button";
 import Impact from "./_components/Impact";
 import About from "./_components/About";
+import FoodMap from "./_components/FoodMap";
 import Link from "next/link";
 import { useSession } from "next-auth/react";
+import { MapPin } from "lucide-react";
 
 export default function Home() {
   const { data: session } = useSession();
   return (
     <div className="mt-0">
       <span className="flex space-x-1 items-center mb-8">
-        <Image
-          src="/location (1).png"
-          height={18}
-          width={23}
-          quality={100}
-          alt="location"
-        ></Image>
+        <MapPin className="w-5 h-5 text-secondary" />
         <span className="font-semibold">Shirpur</span>
       </span>
-      <div className="flex flex-col sm:flex-row space-y-4 border-b-2 pb-10 border-accent-rust">
-        <div>
+      <div className="flex flex-col sm:flex-row space-y-4 border-b-2 pb-10 border-accent-rust gap-6">
+        <div className="sm:flex-1">
           <h1 className="font-anton uppercase text-6xl mb-4">
             Every bite counts, let none go to waste.
           </h1>
@@ -46,8 +41,11 @@ export default function Home() {
           </div>
         </div>
 
-        <div className="rounded-3xl p-1 bg-accent-mango sm:w-[1000px]">
-          <span className="text-5xl font-anton">THE MAP GOES HERE</span>
+        <div className="rounded-2xl overflow-hidden shadow-lg sm:w-[500px] h-[350px]">
+          <FoodMap
+            listings={[]}
+            userLocation={{ lat: 21.3462, lng: 74.8814 }}
+          />
         </div>
       </div>
       <div className="">

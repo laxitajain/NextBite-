@@ -1,171 +1,150 @@
 "use client";
 
-import { useState, useEffect, useRef } from "react";
-import { MapPin, Navigation } from "lucide-react";
+import { useState, useEffect, useMemo } from "react";
+import { Navigation } from "lucide-react";
+import dynamic from "next/dynamic";
 
-export default function FoodMap({ listings, userLocation, onListingClick }) {
-  const mapRef = useRef(null);
-  const [map, setMap] = useState(null);
-  const [markers, setMarkers] = useState([]);
-  const [userMarker, setUserMarker] = useState(null);
-  const [isMapLoaded, setIsMapLoaded] = useState(false);
+const MapContainer = dynamic(
+  () => import("react-leaflet").then((mod) => mod.MapContainer),
+  { ssr: false }
+);
+const TileLayer = dynamic(
+  () => import("react-leaflet").then((mod) => mod.TileLayer),
+  { ssr: false }
+);
+const Marker = dynamic(
+  () => import("react-leaflet").then((mod) => mod.Marker),
+  { ssr: false }
+);
+const Popup = dynamic(
+  () => import("react-leaflet").then((mod) => mod.Popup),
+  { ssr: false }
+);
+const useMap = dynamic(
+  () => import("react-leaflet").then((mod) => mod.useMap),
+  { ssr: false }
+);
+
+function RecenterButton({ userLocation }) {
+  const [mapRef, setMapRef] = useState(null);
 
   useEffect(() => {
-    // Initialize map when component mounts
-    const initMap = () => {
-      if (typeof window !== "undefined" && window.google) {
-        const mapElement = mapRef.current;
-        if (mapElement) {
-          const googleMap = new window.google.maps.Map(mapElement, {
-            center: userLocation || { lat: 19.076, lng: 72.8777 }, // Mumbai coordinates as default
-            zoom: 12,
-            styles: [
-              {
-                featureType: "poi",
-                elementType: "labels",
-                stylers: [{ visibility: "off" }],
-              },
-            ],
-          });
-
-          setMap(googleMap);
-          setIsMapLoaded(true);
-        }
-      }
-    };
-
-    // Load Google Maps script if not already loaded
-    if (typeof window !== "undefined" && !window.google) {
-      const script = document.createElement("script");
-      script.src = `https://maps.googleapis.com/maps/api/js?key=${process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY}&libraries=places`;
-      script.async = true;
-      script.defer = true;
-      script.onload = initMap;
-      document.head.appendChild(script);
-    } else {
-      initMap();
-    }
+    (async () => {
+      const { useMap } = await import("react-leaflet");
+      setMapRef(null);
+    })();
   }, []);
 
-  // Update user location marker
+  return null;
+}
+
+function MapInner({ listings, userLocation, onListingClick }) {
+  const [L, setL] = useState(null);
+
   useEffect(() => {
-    if (map && userLocation) {
-      // Remove existing user marker
-      if (userMarker) {
-        userMarker.setMap(null);
-      }
+    import("leaflet").then((leaflet) => {
+      setL(leaflet.default);
+    });
+  }, []);
 
-      // Create new user marker
-      const newUserMarker = new window.google.maps.Marker({
-        position: userLocation,
-        map: map,
-        icon: {
-          url:
-            "data:image/svg+xml;charset=UTF-8," +
-            encodeURIComponent(`
-            <svg width="32" height="32" viewBox="0 0 32 32" xmlns="http://www.w3.org/2000/svg">
-              <circle cx="16" cy="16" r="12" fill="#4285F4" stroke="#fff" stroke-width="4"/>
-              <circle cx="16" cy="16" r="6" fill="#fff"/>
-            </svg>
-          `),
-          scaledSize: new window.google.maps.Size(32, 32),
-        },
-        title: "Your Location",
-      });
+  const userIcon = useMemo(() => {
+    if (!L) return null;
+    return L.divIcon({
+      html: `<div style="width:20px;height:20px;background:#4285F4;border:3px solid white;border-radius:50%;box-shadow:0 2px 6px rgba(0,0,0,0.3);"></div>`,
+      className: "",
+      iconSize: [20, 20],
+      iconAnchor: [10, 10],
+    });
+  }, [L]);
 
-      setUserMarker(newUserMarker);
-    }
-  }, [map, userLocation]);
+  const listingIcon = useMemo(() => {
+    if (!L) return null;
+    return L.divIcon({
+      html: `<div style="width:32px;height:32px;background:#10B981;border:3px solid white;border-radius:50%;box-shadow:0 2px 6px rgba(0,0,0,0.3);display:flex;align-items:center;justify-content:center;font-size:16px;">🍽️</div>`,
+      className: "",
+      iconSize: [32, 32],
+      iconAnchor: [16, 16],
+    });
+  }, [L]);
 
-  // Update listing markers
-  useEffect(() => {
-    if (map && listings) {
-      // Clear existing markers
-      markers.forEach((marker) => marker.setMap(null));
+  if (!L) return null;
 
-      const newMarkers = listings
-        .map((listing) => {
-          if (!listing.location?.coordinates) return null;
-
-          const marker = new window.google.maps.Marker({
-            position: {
-              lat: listing.location.coordinates.latitude,
-              lng: listing.location.coordinates.longitude,
-            },
-            map: map,
-            icon: {
-              url:
-                "data:image/svg+xml;charset=UTF-8," +
-                encodeURIComponent(`
-              <svg width="40" height="40" viewBox="0 0 40 40" xmlns="http://www.w3.org/2000/svg">
-                <circle cx="20" cy="20" r="18" fill="#10B981" stroke="#fff" stroke-width="4"/>
-                <text x="20" y="26" text-anchor="middle" fill="white" font-size="20">🍽️</text>
-              </svg>
-            `),
-              scaledSize: new window.google.maps.Size(40, 40),
-            },
-            title: listing.title,
-          });
-
-          // Add click listener
-          marker.addListener("click", () => {
-            if (onListingClick) {
-              onListingClick(listing);
-            }
-          });
-
-          return marker;
-        })
-        .filter(Boolean);
-
-      setMarkers(newMarkers);
-    }
-  }, [map, listings]);
-
-  const centerOnUser = () => {
-    if (map && userLocation) {
-      map.panTo(userLocation);
-      map.setZoom(15);
-    }
-  };
+  const center = userLocation
+    ? [userLocation.lat, userLocation.lng]
+    : [19.076, 72.8777];
 
   return (
-    <div className="relative w-full h-full min-h-[400px] rounded-lg overflow-hidden">
-      {/* Map Container */}
-      <div ref={mapRef} className="w-full h-full" />
+    <MapContainer
+      center={center}
+      zoom={12}
+      className="w-full h-full min-h-[400px] z-0"
+      scrollWheelZoom={true}
+    >
+      <TileLayer
+        attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
+        url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+      />
 
-      {/* Map Controls */}
-      <div className="absolute top-4 right-4 flex flex-col gap-2">
-        <button
-          onClick={centerOnUser}
-          className="p-3 bg-white rounded-lg shadow-lg hover:bg-gray-50 transition-colors"
-          title="Center on your location"
-        >
-          <Navigation className="w-5 h-5 text-gray-600" />
-        </button>
-      </div>
-
-      {/* Loading Overlay */}
-      {!isMapLoaded && (
-        <div className="absolute inset-0 bg-gray-100 flex items-center justify-center">
-          <div className="text-center">
-            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
-            <p className="text-gray-600">Loading map...</p>
-          </div>
-        </div>
+      {userLocation && userIcon && (
+        <Marker position={[userLocation.lat, userLocation.lng]} icon={userIcon}>
+          <Popup>Your Location</Popup>
+        </Marker>
       )}
 
-      {/* No Listings Message */}
-      {isMapLoaded && listings && listings.length === 0 && (
-        <div className="absolute inset-0 bg-white bg-opacity-90 flex items-center justify-center">
-          <div className="text-center">
-            <MapPin className="w-12 h-12 text-gray-400 mx-auto mb-4" />
-            <p className="text-gray-600">No food listings found in your area</p>
-          </div>
-        </div>
-      )}
-    </div>
+      {listings?.map((listing) => {
+        if (!listing.location?.coordinates) return null;
+        const pos = [
+          listing.location.coordinates.latitude,
+          listing.location.coordinates.longitude,
+        ];
+        return (
+          <Marker
+            key={listing._id}
+            position={pos}
+            icon={listingIcon}
+            eventHandlers={{
+              click: () => onListingClick?.(listing),
+            }}
+          >
+            <Popup>
+              <div className="font-semibold">{listing.title}</div>
+              <div className="text-sm text-gray-600">
+                {listing.description?.slice(0, 80)}
+                {listing.description?.length > 80 ? "..." : ""}
+              </div>
+            </Popup>
+          </Marker>
+        );
+      })}
+    </MapContainer>
   );
 }
 
+export default function FoodMap({ listings, userLocation, onListingClick }) {
+  const [mounted, setMounted] = useState(false);
 
+  useEffect(() => {
+    setMounted(true);
+  }, []);
+
+  if (!mounted) {
+    return (
+      <div className="w-full min-h-[400px] bg-gray-100 rounded-lg flex items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-secondary mx-auto mb-4"></div>
+          <p className="text-gray-600">Loading map...</p>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="relative w-full h-full min-h-[400px] rounded-lg overflow-hidden">
+      <MapInner
+        listings={listings}
+        userLocation={userLocation}
+        onListingClick={onListingClick}
+      />
+    </div>
+  );
+}

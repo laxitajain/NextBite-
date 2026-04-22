@@ -1,123 +1,67 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
-import { Loader } from "@googlemaps/js-api-loader";
+import { useEffect, useState, useMemo } from "react";
+
+function MapInner({ coordinates, address }) {
+  const [L, setL] = useState(null);
+  const [components, setComponents] = useState(null);
+
+  useEffect(() => {
+    Promise.all([import("leaflet"), import("react-leaflet")]).then(
+      ([leaflet, rl]) => {
+        setL(leaflet.default);
+        setComponents(rl);
+      }
+    );
+  }, []);
+
+  const icon = useMemo(() => {
+    if (!L) return null;
+    return L.divIcon({
+      html: `<div style="width:28px;height:28px;background:#3B82F6;border:3px solid white;border-radius:50%;box-shadow:0 2px 6px rgba(0,0,0,0.3);"></div>`,
+      className: "",
+      iconSize: [28, 28],
+      iconAnchor: [14, 14],
+    });
+  }, [L]);
+
+  if (!L || !components) return null;
+
+  const { MapContainer, TileLayer, Marker, Popup } = components;
+  const pos = [coordinates.latitude, coordinates.longitude];
+
+  return (
+    <MapContainer
+      center={pos}
+      zoom={15}
+      className="w-full h-full z-0"
+      scrollWheelZoom={false}
+    >
+      <TileLayer
+        attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
+        url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+      />
+      <Marker position={pos} icon={icon}>
+        <Popup>
+          <div className="font-semibold text-gray-900">Your Location</div>
+          <div className="text-sm text-gray-600">
+            {address || "Address not specified"}
+          </div>
+          <div className="text-xs text-gray-500 mt-1">
+            {coordinates.latitude.toFixed(6)}, {coordinates.longitude.toFixed(6)}
+          </div>
+        </Popup>
+      </Marker>
+    </MapContainer>
+  );
+}
 
 export default function ProfileMap({ coordinates, address, className = "" }) {
-  const mapRef = useRef(null);
-  const markerRef = useRef(null);
-  const [map, setMap] = useState(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
+  const [mounted, setMounted] = useState(false);
 
   useEffect(() => {
-    if (!coordinates || (!coordinates.latitude && !coordinates.longitude)) {
-      setLoading(false);
-      return;
-    }
-
-    const initializeMap = async () => {
-      try {
-        const loader = new Loader({
-          apiKey: process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY,
-          version: "weekly",
-          libraries: ["places"],
-        });
-
-        await loader.load();
-
-        const mapInstance = new google.maps.Map(mapRef.current, {
-          center: {
-            lat: coordinates.latitude,
-            lng: coordinates.longitude,
-          },
-          zoom: 15,
-          styles: [
-            {
-              featureType: "poi",
-              elementType: "labels",
-              stylers: [{ visibility: "off" }],
-            },
-          ],
-          mapTypeControl: false,
-          streetViewControl: false,
-          fullscreenControl: false,
-        });
-
-        // Add marker for user location
-        markerRef.current = new google.maps.Marker({
-          position: {
-            lat: coordinates.latitude,
-            lng: coordinates.longitude,
-          },
-          map: mapInstance,
-          title: "Your Location",
-          icon: {
-            url:
-              "data:image/svg+xml;charset=UTF-8," +
-              encodeURIComponent(`
-              <svg width="40" height="40" viewBox="0 0 40 40" xmlns="http://www.w3.org/2000/svg">
-                <circle cx="20" cy="20" r="18" fill="#3B82F6" stroke="#ffffff" stroke-width="3"/>
-                <circle cx="20" cy="20" r="8" fill="#ffffff"/>
-              </svg>
-            `),
-            scaledSize: new google.maps.Size(40, 40),
-            anchor: new google.maps.Point(20, 20),
-          },
-        });
-
-        // Add info window
-        const infoWindow = new google.maps.InfoWindow({
-          content: `
-            <div class="p-2">
-              <h3 class="font-semibold text-gray-900">Your Location</h3>
-              <p class="text-sm text-gray-600">${
-                address || "Address not specified"
-              }</p>
-              <p class="text-xs text-gray-500 mt-1">
-                ${coordinates.latitude.toFixed(
-                  6
-                )}, ${coordinates.longitude.toFixed(6)}
-              </p>
-            </div>
-          `,
-        });
-
-        markerRef.current.addListener("click", () => {
-          infoWindow.open(mapInstance, markerRef.current);
-        });
-
-        setMap(mapInstance);
-        setLoading(false);
-      } catch (err) {
-        console.error("Error loading map:", err);
-        setError("Failed to load map");
-        setLoading(false);
-      }
-    };
-
-    initializeMap();
-
-    // Cleanup
-    return () => {
-      if (markerRef.current) {
-        markerRef.current.setMap(null);
-      }
-    };
-  }, [coordinates, address]);
-
-  // Update marker position when coordinates change
-  useEffect(() => {
-    if (map && markerRef.current && coordinates) {
-      const newPosition = {
-        lat: coordinates.latitude,
-        lng: coordinates.longitude,
-      };
-
-      markerRef.current.setPosition(newPosition);
-      map.setCenter(newPosition);
-    }
-  }, [map, coordinates]);
+    setMounted(true);
+  }, []);
 
   if (!coordinates || (!coordinates.latitude && !coordinates.longitude)) {
     return (
@@ -155,56 +99,25 @@ export default function ProfileMap({ coordinates, address, className = "" }) {
     );
   }
 
-  if (loading) {
+  if (!mounted) {
     return (
       <div
         className={`bg-gray-100 rounded-lg flex items-center justify-center ${className}`}
       >
         <div className="text-center p-6">
-          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto mb-4"></div>
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-secondary mx-auto mb-4"></div>
           <p className="text-gray-600">Loading map...</p>
         </div>
       </div>
     );
   }
 
-  if (error) {
-    return (
-      <div
-        className={`bg-red-50 border border-red-200 rounded-lg flex items-center justify-center ${className}`}
-      >
-        <div className="text-center p-6">
-          <div className="w-16 h-16 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-4">
-            <svg
-              className="w-8 h-8 text-red-500"
-              fill="none"
-              stroke="currentColor"
-              viewBox="0 0 24 24"
-            >
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                strokeWidth={2}
-                d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L3.732 16.5c-.77.833.192 2.5 1.732 2.5z"
-              />
-            </svg>
-          </div>
-          <p className="text-red-600">Failed to load map</p>
-          <p className="text-sm text-red-500">
-            Please check your Google Maps API key
-          </p>
-        </div>
-      </div>
-    );
-  }
-
   return (
-    <div className={`relative ${className}`}>
-      <div ref={mapRef} className="w-full h-full rounded-lg" />
-      <div className="absolute top-2 right-2 bg-white px-2 py-1 rounded shadow text-xs text-gray-600">
+    <div className={`relative rounded-lg overflow-hidden ${className}`}>
+      <MapInner coordinates={coordinates} address={address} />
+      <div className="absolute top-2 right-2 bg-white px-2 py-1 rounded shadow text-xs text-gray-600 z-[1000]">
         📍 Your Location
       </div>
     </div>
   );
 }
-
