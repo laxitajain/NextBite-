@@ -92,11 +92,20 @@ function MapInner({ listings, userLocation, onListingClick }) {
       )}
 
       {listings?.map((listing) => {
-        if (!listing.location?.coordinates) return null;
-        const pos = [
-          listing.location.coordinates.latitude,
-          listing.location.coordinates.longitude,
-        ];
+        const raw = listing.location?.coordinates;
+        if (!raw) return null;
+        let pos;
+        if (Array.isArray(raw.coordinates) && raw.coordinates.length === 2) {
+          // GeoJSON Point: [lng, lat] -> leaflet expects [lat, lng]
+          pos = [raw.coordinates[1], raw.coordinates[0]];
+        } else if (
+          raw.latitude !== undefined &&
+          raw.longitude !== undefined
+        ) {
+          pos = [raw.latitude, raw.longitude];
+        } else {
+          return null;
+        }
         return (
           <Marker
             key={listing._id}

@@ -1,31 +1,3 @@
-// import Image from "next/image";
-
-// function ProfileCard() {
-//   return (
-//     <div className="relative w-fit m-auto bg-accent-mango rounded-lg px-8 py-12 text-center">
-//       <div className="absolute -top-12 left-1/2 -translate-x-1/2 rounded-full bg-accent-pink w-24 h-24 z-0" />
-
-//       {/* <div className="absolute -top-16 left-1/2 -translate-x-1/2 z-10">
-//         <Image
-//           src="/pfp.png"
-//           height={80}
-//           width={80}
-//           alt="pfp"
-//           className="rounded-full border-4 border-white"
-//         />
-//       </div> */}
-
-//       {/* Content */}
-//       <div className="pt-16">
-//         <h2 className="font-bold text-xl">Your Name</h2>
-//         <p className="text-gray-700">Role / Bio / etc.</p>
-//       </div>
-//     </div>
-//   );
-// }
-
-// export default ProfileCard;
-
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
@@ -50,6 +22,12 @@ const FOOD_TYPES = [
   "Canned Food",
 ];
 
+const inputBase =
+  "w-full px-3 py-2 rounded-xl border border-accent-rust bg-white text-primary placeholder:text-primary/40 transition focus:outline-none focus:ring-2 focus:ring-secondary focus:border-secondary disabled:bg-accent-light/60 disabled:cursor-not-allowed";
+
+const sectionCard =
+  "bg-white/80 backdrop-blur-sm border border-accent-rust/60 rounded-2xl shadow-sm p-6";
+
 export default function ProfileCard() {
   const { data: session } = useSession();
   const [user, setUser] = useState(null);
@@ -59,7 +37,6 @@ export default function ProfileCard() {
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
 
-  // Form data
   const [formData, setFormData] = useState({
     name: "",
     phone: "",
@@ -72,15 +49,7 @@ export default function ProfileCard() {
     avgServings: "",
   });
 
-  // Location state
   const [locationPermission, setLocationPermission] = useState(false);
-  const [showLocationPicker, setShowLocationPicker] = useState(false);
-
-  useEffect(() => {
-    if (session?.user?.email) {
-      fetchUserProfile();
-    }
-  }, [session, fetchUserProfile]);
 
   const fetchUserProfile = useCallback(async () => {
     try {
@@ -104,53 +73,52 @@ export default function ProfileCard() {
       } else {
         setError("Failed to load profile data");
       }
-    } catch (error) {
-      console.error("Error fetching profile:", error);
+    } catch (err) {
+      console.error("Error fetching profile:", err);
       setError("Failed to load profile data");
     } finally {
       setLoading(false);
     }
   }, [session?.user?.email]);
 
-  const requestLocation = () => {
-    if (navigator.geolocation) {
-      navigator.geolocation.getCurrentPosition(
-        (position) => {
-          setFormData((prev) => ({
-            ...prev,
-            coordinates: {
-              latitude: position.coords.latitude,
-              longitude: position.coords.longitude,
-            },
-          }));
-          setLocationPermission(true);
-        },
-        (error) => {
-          console.error("Location access denied:", error);
-          setLocationPermission(false);
-        }
-      );
+  useEffect(() => {
+    if (session?.user?.email) {
+      fetchUserProfile();
     }
+  }, [session, fetchUserProfile]);
+
+  const requestLocation = () => {
+    if (!navigator.geolocation) return;
+    navigator.geolocation.getCurrentPosition(
+      (position) => {
+        setFormData((prev) => ({
+          ...prev,
+          coordinates: {
+            latitude: position.coords.latitude,
+            longitude: position.coords.longitude,
+          },
+        }));
+        setLocationPermission(true);
+      },
+      () => setLocationPermission(false)
+    );
   };
 
   const handleInputChange = (field, value) => {
-    setFormData((prev) => ({
-      ...prev,
-      [field]: value,
-    }));
+    setFormData((prev) => ({ ...prev, [field]: value }));
   };
 
   const handleFoodTypeChange = (foodType) => {
     setFormData((prev) => ({
       ...prev,
       foodTypes: prev.foodTypes.includes(foodType)
-        ? prev.foodTypes.filter((type) => type !== foodType)
+        ? prev.foodTypes.filter((t) => t !== foodType)
         : [...prev.foodTypes, foodType],
     }));
   };
 
   const handleSubmit = async (e) => {
-    e.preventDefault();
+    e?.preventDefault?.();
     setSaving(true);
     setError("");
     setSuccess("");
@@ -158,9 +126,7 @@ export default function ProfileCard() {
     try {
       const response = await fetch(`/api/donor/${session.user.email}`, {
         method: "PUT",
-        headers: {
-          "Content-Type": "application/json",
-        },
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           ...formData,
           avgServings: parseInt(formData.avgServings) || 0,
@@ -173,13 +139,12 @@ export default function ProfileCard() {
         setSuccess("Profile updated successfully!");
         setUser(result.data);
         setIsEditing(false);
-        // Refresh after 2 seconds
         setTimeout(() => setSuccess(""), 3000);
       } else {
         setError(result.message || "Failed to update profile");
       }
-    } catch (error) {
-      console.error("Error updating profile:", error);
+    } catch (err) {
+      console.error("Error updating profile:", err);
       setError("Failed to update profile");
     } finally {
       setSaving(false);
@@ -187,17 +152,17 @@ export default function ProfileCard() {
   };
 
   const handleCancel = () => {
-    // Reset form data to original user data
+    if (!user) return;
     setFormData({
-      name: user?.name || "",
-      phone: user?.phone || "",
-      address: user?.address || "",
-      city: user?.city || "",
-      pincode: user?.pincode || "",
-      coordinates: user?.coordinates || { latitude: 0, longitude: 0 },
-      foodTypes: user?.foodTypes || [],
-      pickupNotes: user?.pickupNotes || "",
-      avgServings: user?.avgServings || "",
+      name: user.name || "",
+      phone: user.phone || "",
+      address: user.address || "",
+      city: user.city || "",
+      pincode: user.pincode || "",
+      coordinates: user.coordinates || { latitude: 0, longitude: 0 },
+      foodTypes: user.foodTypes || [],
+      pickupNotes: user.pickupNotes || "",
+      avgServings: user.avgServings || "",
     });
     setIsEditing(false);
     setError("");
@@ -206,60 +171,57 @@ export default function ProfileCard() {
   if (loading) {
     return (
       <div className="flex items-center justify-center p-8">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
+        <div className="spinner"></div>
       </div>
     );
   }
 
   if (!user) {
     return (
-      <div className="bg-white rounded-lg shadow-lg p-6">
-        <p className="text-red-600">Failed to load profile data</p>
+      <div className={sectionCard}>
+        <p className="text-red-700">Failed to load profile data</p>
       </div>
     );
   }
 
   return (
-    <div className="max-w-4xl mx-auto">
-      {/* Header */}
-      <div className="bg-white rounded-lg shadow-lg p-6 mb-6">
-        <div className="flex items-center justify-between">
+    <div className="max-w-5xl mx-auto">
+      {/* Header card */}
+      <div className="relative bg-accent-mango border border-accent-rust rounded-2xl shadow-sm p-6 mb-6 overflow-hidden">
+        <div className="absolute -top-10 -right-10 w-40 h-40 bg-accent-pink/40 rounded-full blur-2xl pointer-events-none" />
+        <div className="relative flex flex-col md:flex-row md:items-center md:justify-between gap-4">
           <div className="flex items-center gap-4">
-            <div className="w-16 h-16 bg-gradient-to-r from-green-400 to-blue-500 rounded-full flex items-center justify-center">
+            <div className="w-16 h-16 bg-gradient-to-br from-accent-pink to-secondary rounded-full flex items-center justify-center shadow-sm">
               <User className="w-8 h-8 text-white" />
             </div>
             <div>
-              <h2 className="text-2xl font-bold text-gray-900">{user.name}</h2>
-              <p className="text-gray-600">Donor Profile</p>
+              <h2 className="text-2xl md:text-3xl font-anton text-primary">
+                {user.name}
+              </h2>
+              <p className="text-primary/70 text-sm">Donor Profile</p>
             </div>
           </div>
           <div className="flex gap-2">
             {!isEditing ? (
-              <Button
-                onClick={() => setIsEditing(true)}
-                className="bg-blue-600 hover:bg-blue-700"
-              >
-                <Edit3 className="w-4 h-4 mr-2" />
+              <Button onClick={() => setIsEditing(true)}>
+                <Edit3 className="w-4 h-4" />
                 Edit Profile
               </Button>
             ) : (
-              <div className="flex gap-2">
-                <Button
+              <>
+                <button
+                  type="button"
                   onClick={handleCancel}
-                  className="bg-gray-500 hover:bg-gray-600"
+                  className="inline-flex items-center gap-1 text-base bg-white text-primary border border-accent-rust rounded-full p-2 px-4 font-bold hover:bg-accent-light transition"
                 >
-                  <X className="w-4 h-4 mr-2" />
+                  <X className="w-4 h-4" />
                   Cancel
-                </Button>
-                <Button
-                  onClick={handleSubmit}
-                  disabled={saving}
-                  className="bg-green-600 hover:bg-green-700"
-                >
-                  <Save className="w-4 h-4 mr-2" />
+                </button>
+                <Button onClick={handleSubmit} disabled={saving}>
+                  <Save className="w-4 h-4" />
                   {saving ? "Saving..." : "Save Changes"}
                 </Button>
-              </div>
+              </>
             )}
           </div>
         </div>
@@ -267,28 +229,27 @@ export default function ProfileCard() {
 
       {/* Messages */}
       {error && (
-        <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded mb-4">
+        <div className="bg-red-50 border border-red-300 text-red-700 px-4 py-3 rounded-xl mb-4">
           {error}
         </div>
       )}
       {success && (
-        <div className="bg-green-100 border border-green-400 text-green-700 px-4 py-3 rounded mb-4">
+        <div className="bg-green-50 border border-green-300 text-green-800 px-4 py-3 rounded-xl mb-4">
           {success}
         </div>
       )}
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {/* Personal Information */}
-        <div className="bg-white rounded-lg shadow-lg p-6">
-          <h3 className="text-xl font-bold mb-4 flex items-center gap-2">
-            <User className="w-5 h-5" />
+        <div className={sectionCard}>
+          <h3 className="text-xl font-anton mb-4 flex items-center gap-2 text-primary">
+            <User className="w-5 h-5 text-secondary" />
             Personal Information
           </h3>
 
           <form onSubmit={handleSubmit} className="space-y-4">
-            {/* Name */}
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
+              <label className="block text-sm font-semibold text-primary/80 mb-1">
                 Full Name
               </label>
               <input
@@ -296,49 +257,46 @@ export default function ProfileCard() {
                 value={formData.name}
                 onChange={(e) => handleInputChange("name", e.target.value)}
                 disabled={!isEditing}
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:bg-gray-100"
+                className={inputBase}
               />
             </div>
 
-            {/* Email (Read-only) */}
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
+              <label className="block text-sm font-semibold text-primary/80 mb-1">
                 Email Address
               </label>
-              <div className="flex items-center gap-2">
-                <Mail className="w-4 h-4 text-gray-500" />
+              <div className="relative">
+                <Mail className="w-4 h-4 text-primary/50 absolute left-3 top-1/2 -translate-y-1/2" />
                 <input
                   type="email"
                   value={user.email}
                   disabled
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md bg-gray-100 text-gray-600"
+                  className={`${inputBase} pl-9`}
                 />
               </div>
-              <p className="text-xs text-gray-500 mt-1">
+              <p className="text-xs text-primary/50 mt-1">
                 Email cannot be changed
               </p>
             </div>
 
-            {/* Phone */}
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
+              <label className="block text-sm font-semibold text-primary/80 mb-1">
                 Phone Number
               </label>
-              <div className="flex items-center gap-2">
-                <Phone className="w-4 h-4 text-gray-500" />
+              <div className="relative">
+                <Phone className="w-4 h-4 text-primary/50 absolute left-3 top-1/2 -translate-y-1/2" />
                 <input
                   type="tel"
                   value={formData.phone}
                   onChange={(e) => handleInputChange("phone", e.target.value)}
                   disabled={!isEditing}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:bg-gray-100"
+                  className={`${inputBase} pl-9`}
                 />
               </div>
             </div>
 
-            {/* Average Servings */}
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
+              <label className="block text-sm font-semibold text-primary/80 mb-1">
                 Average Servings per Donation
               </label>
               <input
@@ -349,41 +307,41 @@ export default function ProfileCard() {
                 }
                 disabled={!isEditing}
                 min="1"
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:bg-gray-100"
+                className={inputBase}
               />
             </div>
           </form>
         </div>
 
         {/* Location Information */}
-        <div className="bg-white rounded-lg shadow-lg p-6">
-          <h3 className="text-xl font-bold mb-4 flex items-center gap-2">
-            <MapPin className="w-5 h-5" />
+        <div className={sectionCard}>
+          <h3 className="text-xl font-anton mb-4 flex items-center gap-2 text-primary">
+            <MapPin className="w-5 h-5 text-secondary" />
             Location Information
           </h3>
 
           <div className="space-y-4">
-            {/* Address */}
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
+              <label className="block text-sm font-semibold text-primary/80 mb-1">
                 Address
               </label>
-              <div className="flex items-center gap-2">
-                <Home className="w-4 h-4 text-gray-500" />
+              <div className="relative">
+                <Home className="w-4 h-4 text-primary/50 absolute left-3 top-1/2 -translate-y-1/2" />
                 <input
                   type="text"
                   value={formData.address}
-                  onChange={(e) => handleInputChange("address", e.target.value)}
+                  onChange={(e) =>
+                    handleInputChange("address", e.target.value)
+                  }
                   disabled={!isEditing}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:bg-gray-100"
+                  className={`${inputBase} pl-9`}
                 />
               </div>
             </div>
 
-            {/* City and Pincode */}
             <div className="grid grid-cols-2 gap-4">
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
+                <label className="block text-sm font-semibold text-primary/80 mb-1">
                   City
                 </label>
                 <input
@@ -391,47 +349,44 @@ export default function ProfileCard() {
                   value={formData.city}
                   onChange={(e) => handleInputChange("city", e.target.value)}
                   disabled={!isEditing}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:bg-gray-100"
+                  className={inputBase}
                 />
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
+                <label className="block text-sm font-semibold text-primary/80 mb-1">
                   Pincode
                 </label>
                 <input
                   type="number"
                   value={formData.pincode}
-                  onChange={(e) => handleInputChange("pincode", e.target.value)}
+                  onChange={(e) =>
+                    handleInputChange("pincode", e.target.value)
+                  }
                   disabled={!isEditing}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:bg-gray-100"
+                  className={inputBase}
                 />
               </div>
             </div>
 
-            {/* Location Coordinates */}
             {isEditing && (
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
+                <label className="block text-sm font-semibold text-primary/80 mb-2">
                   Current Location
                 </label>
-                <div className="flex items-center gap-2">
-                  <Button
-                    type="button"
-                    onClick={requestLocation}
-                    className="bg-green-600 hover:bg-green-700"
-                  >
-                    <MapPin className="w-4 h-4 mr-2" />
+                <div className="flex items-center gap-2 flex-wrap">
+                  <Button type="button" onClick={requestLocation}>
+                    <MapPin className="w-4 h-4" />
                     Update Location
                   </Button>
                   {locationPermission && (
-                    <span className="text-sm text-green-600">
-                      Location updated successfully
+                    <span className="text-sm text-green-700 font-semibold">
+                      Location updated
                     </span>
                   )}
                 </div>
                 {(formData.coordinates.latitude !== 0 ||
                   formData.coordinates.longitude !== 0) && (
-                  <div className="mt-2 p-2 bg-gray-50 rounded text-sm">
+                  <div className="mt-2 p-2 bg-accent-light rounded-lg text-sm text-primary/80">
                     <p>Lat: {formData.coordinates.latitude.toFixed(6)}</p>
                     <p>Lng: {formData.coordinates.longitude.toFixed(6)}</p>
                   </div>
@@ -441,13 +396,13 @@ export default function ProfileCard() {
           </div>
         </div>
 
-        {/* Map Display */}
-        <div className="bg-white rounded-lg shadow-lg p-6">
-          <h3 className="text-xl font-bold mb-4 flex items-center gap-2">
-            <MapPin className="w-5 h-5" />
+        {/* Map */}
+        <div className={sectionCard}>
+          <h3 className="text-xl font-anton mb-4 flex items-center gap-2 text-primary">
+            <MapPin className="w-5 h-5 text-secondary" />
             Location Map
           </h3>
-          <div className="h-64">
+          <div className="h-64 rounded-xl overflow-hidden border border-accent-rust">
             <ProfileMap
               coordinates={formData.coordinates}
               address={`${formData.address}, ${formData.city}, ${formData.pincode}`}
@@ -457,66 +412,79 @@ export default function ProfileCard() {
         </div>
 
         {/* Food Preferences */}
-        <div className="bg-white rounded-lg shadow-lg p-6">
-          <h3 className="text-xl font-bold mb-4">Food Types You Donate</h3>
-
+        <div className={sectionCard}>
+          <h3 className="text-xl font-anton mb-4 text-primary">
+            Food Types You Donate
+          </h3>
           <div className="grid grid-cols-2 gap-2">
             {FOOD_TYPES.map((type) => (
-              <label key={type} className="flex items-center space-x-2">
+              <label
+                key={type}
+                className={`flex items-center gap-2 px-3 py-2 rounded-lg border transition cursor-pointer ${
+                  formData.foodTypes.includes(type)
+                    ? "bg-accent-mango border-secondary"
+                    : "bg-white border-accent-rust hover:bg-accent-light"
+                } ${!isEditing && "cursor-default"}`}
+              >
                 <input
                   type="checkbox"
                   checked={formData.foodTypes.includes(type)}
                   onChange={() => handleFoodTypeChange(type)}
                   disabled={!isEditing}
-                  className="rounded border-gray-300 disabled:opacity-50"
+                  className="checkbox"
                 />
-                <span className="text-sm">{type}</span>
+                <span className="text-sm text-primary font-semibold">
+                  {type}
+                </span>
               </label>
             ))}
           </div>
         </div>
 
         {/* Additional Information */}
-        <div className="bg-white rounded-lg shadow-lg p-6">
-          <h3 className="text-xl font-bold mb-4">Additional Information</h3>
-
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              Pickup Notes
-            </label>
-            <textarea
-              value={formData.pickupNotes}
-              onChange={(e) => handleInputChange("pickupNotes", e.target.value)}
-              disabled={!isEditing}
-              rows={4}
-              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:bg-gray-100"
-              placeholder="Special instructions for food pickup..."
-            />
-          </div>
+        <div className={`${sectionCard} lg:col-span-2`}>
+          <h3 className="text-xl font-anton mb-4 text-primary">
+            Additional Information
+          </h3>
+          <label className="block text-sm font-semibold text-primary/80 mb-1">
+            Pickup Notes
+          </label>
+          <textarea
+            value={formData.pickupNotes}
+            onChange={(e) => handleInputChange("pickupNotes", e.target.value)}
+            disabled={!isEditing}
+            rows={4}
+            className={inputBase}
+            placeholder="Special instructions for food pickup..."
+          />
         </div>
       </div>
 
-      {/* Stats Section */}
-      <div className="bg-white rounded-lg shadow-lg p-6 mt-6">
-        <h3 className="text-xl font-bold mb-4">Donation Statistics</h3>
+      {/* Stats */}
+      <div className={`${sectionCard} mt-6`}>
+        <h3 className="text-xl font-anton mb-4 text-primary">
+          Donation Statistics
+        </h3>
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-          <div className="text-center p-4 bg-green-50 rounded-lg">
-            <div className="text-2xl font-bold text-green-600">
+          <div className="text-center p-4 bg-accent-mango rounded-xl">
+            <div className="text-3xl font-anton text-primary">
               {user.totalMealsShared || 0}
             </div>
-            <div className="text-sm text-gray-600">Total Meals Shared</div>
+            <div className="text-sm text-primary/70 mt-1">
+              Total Meals Shared
+            </div>
           </div>
-          <div className="text-center p-4 bg-blue-50 rounded-lg">
-            <div className="text-2xl font-bold text-blue-600">
+          <div className="text-center p-4 bg-accent-rust rounded-xl">
+            <div className="text-3xl font-anton text-primary">
               {formData.avgServings || 0}
             </div>
-            <div className="text-sm text-gray-600">Average Servings</div>
+            <div className="text-sm text-primary/70 mt-1">Average Servings</div>
           </div>
-          <div className="text-center p-4 bg-purple-50 rounded-lg">
-            <div className="text-2xl font-bold text-purple-600">
+          <div className="text-center p-4 bg-accent-pink/50 rounded-xl">
+            <div className="text-3xl font-anton text-primary">
               {user.foodTypes?.length || 0}
             </div>
-            <div className="text-sm text-gray-600">Food Types</div>
+            <div className="text-sm text-primary/70 mt-1">Food Types</div>
           </div>
         </div>
       </div>

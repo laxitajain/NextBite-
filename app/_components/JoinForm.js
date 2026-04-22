@@ -28,18 +28,40 @@ export default function JoinForm() {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    setError("");
 
-    if (!name || !email || !password) {
-      setError("All fields are necessary.");
+    if (!name || !email || !password || !phone || !address || !city || !pincode) {
+      setError("Please fill out all personal details.");
       return;
+    }
+
+    if (!role) {
+      setError("Please select a role.");
+      return;
+    }
+
+    if (role === "donor") {
+      if (foodTypes.length === 0 || !pickupNotes || !servings) {
+        setError(
+          "Donors must select food types and fill in pickup notes + average servings."
+        );
+        return;
+      }
+    }
+
+    if (role === "recipient") {
+      if (!organisationType || !requirement) {
+        setError(
+          "Recipients must fill in organisation type and average requirement."
+        );
+        return;
+      }
     }
 
     try {
       const resUserExists = await fetch("/api/userExists", {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ email }),
       });
 
@@ -64,33 +86,34 @@ export default function JoinForm() {
       if (role === "donor") {
         body.foodTypes = foodTypes;
         body.pickupNotes = pickupNotes;
-        body.avgServings = servings;
+        body.avgServings = Number(servings);
         body.totalMealsShared = 0;
       } else if (role === "recipient") {
         body.organisationType = organisationType;
         body.allergies = allergies;
-        body.avgRequirement = requirement;
+        body.avgRequirement = Number(requirement);
         body.totalMealsReceived = 0;
       }
 
       const res = await fetch("/api/register", {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify(body),
       });
+
+      const data = await res.json().catch(() => ({}));
 
       if (res.ok) {
         const form = e.target;
         form.reset();
-        router.push("/");
-        alert("You are registred successfully!!");
+        alert("You are registered successfully!");
+        router.push("/login");
       } else {
-        console.log("User registration failed.");
+        setError(data?.message || "User registration failed.");
       }
-    } catch (error) {
-      console.log("Error during registration: ", error);
+    } catch (err) {
+      console.error("Error during registration:", err);
+      setError("Something went wrong. Please try again.");
     }
   };
 

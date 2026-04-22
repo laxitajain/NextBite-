@@ -8,28 +8,29 @@ export default function NotificationCenter({ user }) {
   const [isOpen, setIsOpen] = useState(false);
   const [unreadCount, setUnreadCount] = useState(0);
 
+  const userId = user?.id || user?._id;
+
   useEffect(() => {
-    if (user) {
-      fetchNotifications();
-      // Poll for new notifications every 30 seconds
-      const interval = setInterval(fetchNotifications, 30000);
-      return () => clearInterval(interval);
-    }
-  }, [user]);
+    if (!userId) return;
 
-  const fetchNotifications = async () => {
-    try {
-      const response = await fetch(`/api/notifications?userId=${user._id}`);
-      const result = await response.json();
+    const fetchNotifications = async () => {
+      try {
+        const response = await fetch(`/api/notifications?userId=${userId}`);
+        const result = await response.json();
 
-      if (result.success) {
-        setNotifications(result.data);
-        setUnreadCount(result.data.filter((n) => !n.read).length);
+        if (result.success) {
+          setNotifications(result.data);
+          setUnreadCount(result.data.filter((n) => !n.read).length);
+        }
+      } catch (error) {
+        console.error("Error fetching notifications:", error);
       }
-    } catch (error) {
-      console.error("Error fetching notifications:", error);
-    }
-  };
+    };
+
+    fetchNotifications();
+    const interval = setInterval(fetchNotifications, 30000);
+    return () => clearInterval(interval);
+  }, [userId]);
 
   const markAsRead = async (notificationId) => {
     try {
@@ -59,7 +60,7 @@ export default function NotificationCenter({ user }) {
         headers: {
           "Content-Type": "application/json",
         },
-        body: JSON.stringify({ userId: user._id }),
+        body: JSON.stringify({ userId }),
       });
 
       if (response.ok) {

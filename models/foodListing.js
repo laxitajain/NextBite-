@@ -39,12 +39,13 @@ const foodListingSchema = new mongoose.Schema(
         required: true,
       },
       coordinates: {
-        latitude: {
-          type: Number,
-          required: true,
+        type: {
+          type: String,
+          enum: ["Point"],
+          default: "Point",
         },
-        longitude: {
-          type: Number,
+        coordinates: {
+          type: [Number], // [longitude, latitude]
           required: true,
         },
       },
@@ -134,7 +135,6 @@ const foodListingSchema = new mongoose.Schema(
   }
 );
 
-// Index for geo queries
 foodListingSchema.index({ "location.coordinates": "2dsphere" });
 foodListingSchema.index({ status: 1, expiryTime: 1 });
 foodListingSchema.index({ donorId: 1, createdAt: -1 });

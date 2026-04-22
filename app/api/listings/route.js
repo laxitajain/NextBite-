@@ -1,5 +1,6 @@
 import { connectMongoDB } from "@/lib/mongodb";
 import FoodListing from "@/models/foodListing";
+import { createNotification } from "@/lib/notify";
 import { NextResponse } from "next/server";
 
 // GET - Fetch food listings with optional filters
@@ -14,30 +15,38 @@ export async function GET(request) {
     const city = searchParams.get("city");
     const foodType = searchParams.get("foodType");
     const status = searchParams.get("status") || "available";
+    const includeAllStatuses =
+      searchParams.get("includeAllStatuses") === "true";
+    const donorId = searchParams.get("donorId");
     const page = parseInt(searchParams.get("page")) || 1;
     const limit = parseInt(searchParams.get("limit")) || 20;
 
-    let query = { status };
+    let query = {};
+    if (!includeAllStatuses) {
+      query.status = status;
+    }
 
-    // Add geo query if coordinates provided
-    if (lat && lng) {
-      query.location = {
+    if (donorId) {
+      query.donorId = donorId;
+    }
+
+    // Geo query uses the GeoJSON point stored at location.coordinates
+    if (!Number.isNaN(lat) && !Number.isNaN(lng)) {
+      query["location.coordinates"] = {
         $near: {
           $geometry: {
             type: "Point",
             coordinates: [lng, lat],
           },
-          $maxDistance: radius * 1000, // Convert km to meters
+          $maxDistance: radius * 1000, // km -> meters
         },
       };
     }
 
-    // Add city filter
     if (city) {
       query["location.city"] = { $regex: city, $options: "i" };
     }
 
-    // Add food type filter
     if (foodType) {
       query.foodTypes = { $in: [foodType] };
     }
@@ -95,6 +104,27 @@ export async function POST(request) {
 
     await connectMongoDB();
 
+    // Normalize coordinates into GeoJSON Point shape
+    let normalizedLocation = location;
+    if (location?.coordinates) {
+      const c = location.coordinates;
+      let coords;
+      if (Array.isArray(c)) {
+        coords = c;
+      } else if (c.longitude !== undefined && c.latitude !== undefined) {
+        coords = [c.longitude, c.latitude];
+      } else if (c.coordinates && Array.isArray(c.coordinates)) {
+        coords = c.coordinates;
+      }
+
+      if (coords) {
+        normalizedLocation = {
+          ...location,
+          coordinates: { type: "Point", coordinates: coords },
+        };
+      }
+    }
+
     const listing = await FoodListing.create({
       donorId,
       title,
@@ -103,7 +133,7 @@ export async function POST(request) {
       servings,
       expiryTime: new Date(expiryTime),
       pickupTime: new Date(pickupTime),
-      location,
+      location: normalizedLocation,
       images: images || [],
       pickupNotes,
       specialInstructions,
@@ -117,6 +147,14 @@ export async function POST(request) {
       "donorId",
       "name phone email address"
     );
+
+    await createNotification({
+      userId: donorId,
+      type: "listing_created",
+      title: "Listing published",
+      message: `Your food listing "${title}" is now live.`,
+      data: { listingId: listing._id },
+    });
 
     return NextResponse.json(
       {

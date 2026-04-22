@@ -28,11 +28,11 @@ export const authOptions = {
           }
 
           return {
+            id: user._id.toString(),
             name: user.name,
             email: user.email,
             role: user.toObject().role,
           };
-          alert("Successfully logged in!!");
         } catch (error) {
           console.log("Error: ", error);
         }
@@ -48,6 +48,9 @@ export const authOptions = {
   },
   callbacks: {
     async jwt({ token, user }) {
+      if (user?.id) {
+        token.id = user.id;
+      }
       if (user?.role) {
         token.role = user.role;
       }
@@ -55,6 +58,9 @@ export const authOptions = {
     },
 
     async session({ session, token }) {
+      if (token?.id) {
+        session.user.id = token.id;
+      }
       if (token?.role) {
         session.user.role = token.role;
       }

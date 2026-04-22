@@ -8,8 +8,17 @@ import {
   Phone,
   MessageCircle,
   Heart,
+  Star,
 } from "lucide-react";
 import Button from "./Button";
+
+const STATUS_STYLE = {
+  available: "bg-accent-mango text-primary",
+  reserved: "bg-secondary/30 text-primary",
+  picked_up: "bg-accent-rust text-primary/70",
+  expired: "bg-red-100 text-red-700",
+  cancelled: "bg-red-100 text-red-700",
+};
 
 export default function FoodListingCard({ listing, user, onRequestPickup }) {
   const [isRequesting, setIsRequesting] = useState(false);
@@ -21,21 +30,6 @@ export default function FoodListingCard({ listing, user, onRequestPickup }) {
       " " +
       date.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })
     );
-  };
-
-  const getStatusColor = (status) => {
-    switch (status) {
-      case "available":
-        return "bg-green-100 text-green-800";
-      case "reserved":
-        return "bg-yellow-100 text-yellow-800";
-      case "picked_up":
-        return "bg-gray-100 text-gray-800";
-      case "expired":
-        return "bg-red-100 text-red-800";
-      default:
-        return "bg-gray-100 text-gray-800";
-    }
   };
 
   const handleRequestPickup = async () => {
@@ -84,11 +78,15 @@ export default function FoodListingCard({ listing, user, onRequestPickup }) {
     }
   };
 
+  const statusClass =
+    STATUS_STYLE[listing.status] || "bg-accent-rust text-primary/70";
+
   return (
-    <div className="bg-white rounded-lg shadow-lg overflow-hidden hover:shadow-xl transition-shadow">
-      {/* Image Section */}
-      <div className="h-48 bg-gradient-to-r from-green-400 to-blue-500 relative">
+    <div className="bg-white/90 backdrop-blur-sm border border-accent-rust/60 rounded-2xl shadow-sm overflow-hidden hover:shadow-md hover:-translate-y-0.5 transition-all">
+      {/* Image */}
+      <div className="h-48 bg-gradient-to-br from-accent-mango via-secondary to-accent-pink relative">
         {listing.images && listing.images.length > 0 ? (
+          /* eslint-disable-next-line @next/next/no-img-element */
           <img
             src={listing.images[0]}
             alt={listing.title}
@@ -96,98 +94,113 @@ export default function FoodListingCard({ listing, user, onRequestPickup }) {
           />
         ) : (
           <div className="flex items-center justify-center h-full">
-            <span className="text-white text-4xl">🍽️</span>
+            <span className="text-white text-5xl drop-shadow-sm">🍽️</span>
           </div>
         )}
 
-        {/* Status Badge */}
         <div className="absolute top-4 right-4">
           <span
-            className={`px-3 py-1 rounded-full text-xs font-semibold ${getStatusColor(
-              listing.status
-            )}`}
+            className={`px-3 py-1 rounded-full text-xs font-bold uppercase tracking-wide ${statusClass}`}
           >
-            {listing.status.replace("_", " ").toUpperCase()}
+            {listing.status.replace("_", " ")}
           </span>
         </div>
 
-        {/* Distance Badge */}
         {listing.distance && (
-          <div className="absolute top-4 left-4 bg-white bg-opacity-90 px-2 py-1 rounded-full text-sm font-medium">
-            {listing.distance.toFixed(1)} km away
+          <div className="absolute top-4 left-4 bg-white/90 px-3 py-1 rounded-full text-xs font-semibold text-primary flex items-center gap-1">
+            <MapPin className="w-3 h-3" />
+            {listing.distance.toFixed(1)} km
           </div>
         )}
       </div>
 
-      {/* Content Section */}
       <div className="p-6">
-        {/* Header */}
-        <div className="flex justify-between items-start mb-4">
-          <div>
-            <h3 className="text-xl font-bold text-gray-900 mb-1">
+        <div className="flex justify-between items-start mb-3">
+          <div className="flex-1">
+            <h3 className="text-xl font-anton text-primary mb-0.5">
               {listing.title}
             </h3>
-            <p className="text-gray-600 text-sm">by {listing.donorId?.name}</p>
+            <p className="text-primary/60 text-sm">
+              by {listing.donorId?.name}
+            </p>
+            {listing.rating && (
+              <div className="flex items-center gap-1 mt-1">
+                {[1, 2, 3, 4, 5].map((n) => (
+                  <Star
+                    key={n}
+                    className={`w-4 h-4 ${
+                      n <= Math.round(listing.rating)
+                        ? "fill-secondary text-secondary"
+                        : "text-accent-rust"
+                    }`}
+                  />
+                ))}
+                <span className="text-xs text-primary/60 ml-1">
+                  {listing.rating.toFixed(1)} ({listing.reviews?.length || 0})
+                </span>
+              </div>
+            )}
           </div>
 
           {listing.estimatedValue && (
             <div className="text-right">
-              <span className="text-lg font-bold text-green-600">
+              <span className="text-lg font-anton text-primary">
                 ₹{listing.estimatedValue}
               </span>
-              <p className="text-xs text-gray-500">Estimated Value</p>
+              <p className="text-xs text-primary/50">Est. Value</p>
             </div>
           )}
         </div>
 
-        {/* Description */}
-        <p className="text-gray-700 mb-4 line-clamp-2">{listing.description}</p>
+        <p className="text-primary/80 text-sm mb-4 line-clamp-2">
+          {listing.description}
+        </p>
 
-        {/* Food Types */}
         <div className="flex flex-wrap gap-2 mb-4">
           {listing.foodTypes?.slice(0, 4).map((type, index) => (
             <span
               key={index}
-              className="px-2 py-1 bg-blue-100 text-blue-800 text-xs rounded-full"
+              className="px-2 py-1 bg-accent-mango text-primary text-xs font-semibold rounded-full"
             >
               {type}
             </span>
           ))}
           {listing.foodTypes?.length > 4 && (
-            <span className="px-2 py-1 bg-gray-100 text-gray-600 text-xs rounded-full">
+            <span className="px-2 py-1 bg-accent-light text-primary/70 text-xs rounded-full">
               +{listing.foodTypes.length - 4} more
             </span>
           )}
         </div>
 
-        {/* Details Grid */}
-        <div className="grid grid-cols-2 gap-4 mb-4 text-sm">
-          <div className="flex items-center text-gray-600">
-            <Users className="w-4 h-4 mr-2" />
+        <div className="grid grid-cols-2 gap-3 mb-3 text-sm">
+          <div className="flex items-center text-primary/80">
+            <Users className="w-4 h-4 mr-2 text-secondary" />
             <span>{listing.servings} servings</span>
           </div>
 
-          <div className="flex items-center text-gray-600">
-            <Clock className="w-4 h-4 mr-2" />
-            <span>Expires: {formatDate(listing.expiryTime)}</span>
+          <div className="flex items-center text-primary/80">
+            <Clock className="w-4 h-4 mr-2 text-secondary" />
+            <span className="truncate">
+              Exp: {formatDate(listing.expiryTime)}
+            </span>
           </div>
         </div>
 
-        {/* Location */}
-        <div className="flex items-start text-gray-600 mb-4">
-          <MapPin className="w-4 h-4 mr-2 mt-0.5 flex-shrink-0" />
-          <span className="text-sm">{listing.location.address}</span>
+        <div className="flex items-start text-primary/80 mb-4 text-sm">
+          <MapPin className="w-4 h-4 mr-2 mt-0.5 flex-shrink-0 text-secondary" />
+          <span>{listing.location.address}</span>
         </div>
 
-        {/* Allergens */}
         {listing.allergens && listing.allergens.length > 0 && (
           <div className="mb-4">
-            <p className="text-xs text-gray-500 mb-1">Contains:</p>
+            <p className="text-xs text-primary/60 mb-1 font-semibold">
+              Contains:
+            </p>
             <div className="flex flex-wrap gap-1">
               {listing.allergens.map((allergen, index) => (
                 <span
                   key={index}
-                  className="px-2 py-1 bg-red-100 text-red-700 text-xs rounded"
+                  className="px-2 py-0.5 bg-accent-pink/40 text-primary text-xs rounded-full"
                 >
                   {allergen}
                 </span>
@@ -196,58 +209,63 @@ export default function FoodListingCard({ listing, user, onRequestPickup }) {
           </div>
         )}
 
-        {/* Dietary Info */}
-        <div className="flex gap-2 mb-4">
+        <div className="flex flex-wrap gap-2 mb-4">
           {listing.isVegetarian && (
-            <span className="px-2 py-1 bg-green-100 text-green-700 text-xs rounded-full">
+            <span className="px-2 py-1 bg-accent-mango text-primary text-xs font-semibold rounded-full">
               🥬 Vegetarian
             </span>
           )}
           {listing.isVegan && (
-            <span className="px-2 py-1 bg-green-100 text-green-700 text-xs rounded-full">
+            <span className="px-2 py-1 bg-accent-mango text-primary text-xs font-semibold rounded-full">
               🌱 Vegan
             </span>
           )}
         </div>
 
-        {/* Pickup Notes */}
         {listing.pickupNotes && (
-          <div className="mb-4 p-3 bg-gray-50 rounded-lg">
-            <p className="text-sm text-gray-700">
-              <strong>Pickup Notes:</strong> {listing.pickupNotes}
+          <div className="mb-4 p-3 bg-accent-light rounded-xl">
+            <p className="text-sm text-primary/80">
+              <strong className="text-primary">Pickup Notes:</strong>{" "}
+              {listing.pickupNotes}
             </p>
           </div>
         )}
 
-        {/* Action Buttons */}
-        <div className="flex gap-3">
+        <div className="flex gap-2">
           {listing.status === "available" && (
             <Button
               onClick={handleRequestPickup}
               disabled={isRequesting}
-              className="flex-1"
+              className="!w-auto flex-1 !text-base"
             >
-              <MessageCircle className="w-4 h-4 mr-2" />
+              <MessageCircle className="w-4 h-4" />
               {isRequesting ? "Sending..." : "Request Pickup"}
             </Button>
           )}
 
-          <button className="p-2 border border-gray-300 rounded-lg hover:bg-gray-50">
+          <button
+            type="button"
+            className="p-2 border border-accent-rust rounded-full hover:bg-accent-light text-primary transition"
+            aria-label="Favorite"
+          >
             <Heart className="w-4 h-4" />
           </button>
 
-          <button className="p-2 border border-gray-300 rounded-lg hover:bg-gray-50">
+          <button
+            type="button"
+            className="p-2 border border-accent-rust rounded-full hover:bg-accent-light text-primary transition"
+            aria-label="Call donor"
+          >
             <Phone className="w-4 h-4" />
           </button>
         </div>
 
-        {/* Contact Info (if reserved by current user) */}
         {listing.status === "reserved" &&
           listing.reservedBy?._id === user?._id && (
-            <div className="mt-4 p-3 bg-blue-50 rounded-lg">
-              <p className="text-sm text-blue-800">
-                <strong>Your request is pending approval.</strong>
-                You can contact the donor at {listing.donorId?.phone}
+            <div className="mt-4 p-3 bg-accent-mango/60 border border-secondary/40 rounded-xl">
+              <p className="text-sm text-primary">
+                <strong>Your request is pending approval.</strong> You can
+                contact the donor at {listing.donorId?.phone}
               </p>
             </div>
           )}
@@ -255,5 +273,3 @@ export default function FoodListingCard({ listing, user, onRequestPickup }) {
     </div>
   );
 }
-
-

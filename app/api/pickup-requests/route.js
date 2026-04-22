@@ -1,6 +1,7 @@
 import { connectMongoDB } from "@/lib/mongodb";
 import PickupRequest from "@/models/pickupRequest";
 import FoodListing from "@/models/foodListing";
+import { createNotification } from "@/lib/notify";
 import { NextResponse } from "next/server";
 
 // GET - Fetch pickup requests
@@ -109,6 +110,19 @@ export async function POST(request) {
       .populate("listingId")
       .populate("donorId", "name phone email address")
       .populate("recipientId", "name phone email address");
+
+    await createNotification({
+      userId: listing.donorId,
+      type: "pickup_request",
+      title: "New pickup request",
+      message: `${
+        populatedRequest.recipientId?.name || "A recipient"
+      } requested a pickup for "${listing.title}".`,
+      data: {
+        pickupRequestId: populatedRequest._id,
+        listingId: listing._id,
+      },
+    });
 
     return NextResponse.json(
       {

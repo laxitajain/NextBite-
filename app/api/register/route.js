@@ -67,6 +67,25 @@ export async function POST(req) {
     return NextResponse.json({ message: "User registered." }, { status: 201 });
   } catch (error) {
     console.error("Registration Error:", error);
+
+    if (error?.name === "ValidationError" && error?.errors) {
+      const fields = Object.keys(error.errors);
+      return NextResponse.json(
+        {
+          message: `Missing or invalid fields: ${fields.join(", ")}`,
+          fields,
+        },
+        { status: 400 }
+      );
+    }
+
+    if (error?.code === 11000) {
+      return NextResponse.json(
+        { message: "A user with this email already exists." },
+        { status: 409 }
+      );
+    }
+
     return NextResponse.json(
       { message: "An error occurred while registering the user." },
       { status: 500 }

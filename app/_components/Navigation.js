@@ -8,7 +8,6 @@ import { useSession } from "next-auth/react";
 
 export default function Navigation() {
   const { data: session } = useSession();
-  console.log(session);
 
   return (
     <nav className="z-10 text-[1.2rem]">

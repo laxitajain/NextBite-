@@ -7,6 +7,7 @@ import {
   Navigation,
   CheckCircle,
   AlertCircle,
+  Star,
 } from "lucide-react";
 import Button from "./Button";
 
@@ -14,6 +15,11 @@ export default function PickupTracker({ pickupRequest, user, onStatusUpdate }) {
   const [currentLocation, setCurrentLocation] = useState(null);
   const [isTracking, setIsTracking] = useState(false);
   const [estimatedArrival, setEstimatedArrival] = useState(null);
+  const [ratingOpen, setRatingOpen] = useState(false);
+  const [ratingValue, setRatingValue] = useState(0);
+  const [ratingHover, setRatingHover] = useState(0);
+  const [ratingReview, setRatingReview] = useState("");
+  const [submittingRating, setSubmittingRating] = useState(false);
 
   useEffect(() => {
     if (pickupRequest?.status === "accepted" && navigator.geolocation) {
@@ -72,6 +78,36 @@ export default function PickupTracker({ pickupRequest, user, onStatusUpdate }) {
       }
     } catch (error) {
       console.error("Error updating location:", error);
+    }
+  };
+
+  const submitRating = async () => {
+    if (!ratingValue) return;
+    setSubmittingRating(true);
+    try {
+      const response = await fetch(
+        `/api/pickup-requests/${pickupRequest._id}`,
+        {
+          method: "PUT",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            rating: ratingValue,
+            review: ratingReview,
+            ratingRole: user?.role,
+          }),
+        }
+      );
+      if (response.ok) {
+        const result = await response.json();
+        if (onStatusUpdate) onStatusUpdate(result.data);
+        setRatingOpen(false);
+        setRatingValue(0);
+        setRatingReview("");
+      }
+    } catch (error) {
+      console.error("Error submitting rating:", error);
+    } finally {
+      setSubmittingRating(false);
     }
   };
 
@@ -199,7 +235,34 @@ export default function PickupTracker({ pickupRequest, user, onStatusUpdate }) {
         <p className="text-gray-600">{pickupRequest.donorLocation?.address}</p>
       </div>
 
-      {/* Status Actions */}
+      {/* Status Actions — Recipient */}
+      {user?.role === "recipient" && (
+        <div className="space-y-3">
+          {(pickupRequest.status === "pending" ||
+            pickupRequest.status === "accepted") && (
+            <Button
+              onClick={() =>
+                updateStatus("cancelled", "Recipient cancelled the pickup")
+              }
+              className="bg-red-600 hover:bg-red-700"
+            >
+              Cancel Request
+            </Button>
+          )}
+          {pickupRequest.status === "completed" &&
+            !pickupRequest.completionRating?.recipientRating && (
+              <Button
+                onClick={() => setRatingOpen(true)}
+                className="bg-yellow-500 hover:bg-yellow-600"
+              >
+                <Star className="w-4 h-4 mr-2" />
+                Rate Donor
+              </Button>
+            )}
+        </div>
+      )}
+
+      {/* Status Actions — Donor */}
       {user?.role === "donor" && (
         <div className="space-y-3">
           {pickupRequest.status === "pending" && (
@@ -261,6 +324,75 @@ export default function PickupTracker({ pickupRequest, user, onStatusUpdate }) {
               Complete Pickup
             </Button>
           )}
+
+          {pickupRequest.status === "completed" &&
+            !pickupRequest.completionRating?.donorRating && (
+              <Button
+                onClick={() => setRatingOpen(true)}
+                className="bg-yellow-500 hover:bg-yellow-600"
+              >
+                <Star className="w-4 h-4 mr-2" />
+                Rate Recipient
+              </Button>
+            )}
+        </div>
+      )}
+
+      {/* Rating Modal */}
+      {ratingOpen && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-lg max-w-md w-full p-6">
+            <h3 className="text-xl font-bold mb-4">
+              {user?.role === "donor" ? "Rate Recipient" : "Rate Donor"}
+            </h3>
+            <div className="flex items-center gap-1 mb-4">
+              {[1, 2, 3, 4, 5].map((n) => (
+                <button
+                  key={n}
+                  type="button"
+                  onMouseEnter={() => setRatingHover(n)}
+                  onMouseLeave={() => setRatingHover(0)}
+                  onClick={() => setRatingValue(n)}
+                  className="p-1"
+                  aria-label={`Rate ${n} star${n > 1 ? "s" : ""}`}
+                >
+                  <Star
+                    className={`w-8 h-8 ${
+                      n <= (ratingHover || ratingValue)
+                        ? "fill-yellow-400 text-yellow-400"
+                        : "text-gray-300"
+                    }`}
+                  />
+                </button>
+              ))}
+            </div>
+            <textarea
+              placeholder="Leave a review (optional)"
+              value={ratingReview}
+              onChange={(e) => setRatingReview(e.target.value)}
+              rows={3}
+              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 mb-4"
+            />
+            <div className="flex justify-end gap-2">
+              <button
+                type="button"
+                onClick={() => {
+                  setRatingOpen(false);
+                  setRatingValue(0);
+                  setRatingReview("");
+                }}
+                className="px-4 py-2 border border-gray-300 rounded-md hover:bg-gray-50"
+              >
+                Cancel
+              </button>
+              <Button
+                onClick={submitRating}
+                disabled={!ratingValue || submittingRating}
+              >
+                {submittingRating ? "Submitting..." : "Submit"}
+              </Button>
+            </div>
+          </div>
         </div>
       )}
 

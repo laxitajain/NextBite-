@@ -20,6 +20,8 @@
 .DS_Store
 *.pem
 .codex
+.cursor/
+*.plan.md
 
 # debug
 npm-debug.log*

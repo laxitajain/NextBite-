@@ -7,5 +7,5 @@ export const metadata = {
 };
 
 export default function Layout({ children }) {
-  return <div>donor{children}</div>;
+  return <>{children}</>;
 }

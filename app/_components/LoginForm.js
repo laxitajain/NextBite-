@@ -69,7 +69,7 @@ export default function LoginForm() {
             className="w-full border p-2 rounded-xl"
           />
 
-          <Button type="submit" onClick={handleSubmit}>
+          <Button type="submit">
             Log In
           </Button>
           {error && (
