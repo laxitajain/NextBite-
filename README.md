@@ -6,39 +6,41 @@ A comprehensive food redistribution platform that connects donors and recipients
 
 ### 🍽️ Core Features
 
-- **Food Listings**: Donors can create detailed food listings with location, expiry time, and dietary information
-- **Geo-location Services**: Real-time location tracking and mapping for pickup coordination
-- **Interactive Maps**: Google Maps integration showing available food listings and user locations
-- **Pickup Management**: Complete pickup request and tracking system
-- **Real-time Notifications**: Instant notifications for pickup requests, status updates, and system alerts
-- **User Profiles**: Separate interfaces for donors and recipients with role-based navigation
+- **Food Listings**: Donors can create, edit, and delete detailed food listings with images, location, expiry time, and dietary information
+- **Geo-location Services**: Browser geolocation + MongoDB geospatial indexing for nearby pickup discovery
+- **Interactive Maps**: Leaflet + OpenStreetMap powered maps showing available food listings and user locations
+- **Pickup Management**: Complete pickup request and tracking system with status lifecycle
+- **In-app Notifications**: Notification center and dedicated page for pickup requests, status updates, and alerts
+- **User Profiles**: Separate, role-based interfaces and profile pages for donors and recipients
+- **Image Uploads**: Attach photos to food listings via the built-in upload API
+- **Platform Stats**: Live aggregate stats (total listings, completed pickups, servings, users) on the landing page
 
 ### 🎯 Key Functionality
 
-- **Donor Dashboard**: Create food listings, manage pickup requests, track donations
-- **Recipient Interface**: Browse nearby food listings, request pickups, track orders
-- **Location-based Search**: Find food within specified radius using GPS coordinates
-- **Status Tracking**: Real-time pickup status updates (pending, accepted, en_route, arrived, completed)
-- **Rating System**: Rate and review food donations and pickup experiences
-- **Allergen Information**: Detailed allergen and dietary restriction information
-- **Expiry Management**: Automatic expiry tracking and notifications
+- **Donor Dashboard**: Create listings, manage "My Listings" (edit/delete), handle incoming pickup requests
+- **Recipient Interface**: Browse nearby food in grid / list / map views, filter by type, radius and price, request pickups, track "My Pickups"
+- **Location-based Search**: Find food within a specified radius using GeoJSON `$near` queries
+- **Status Tracking**: Pickup status updates (pending → accepted → en_route → arrived → completed), plus cancel / reject flows
+- **Ratings & Reviews**: Both donors and recipients can rate each pickup; averages are shown on food listing cards
+- **Allergen & Dietary Info**: Allergen tags, vegetarian / vegan flags, estimated value
+- **Expiry Management**: Expiry / pickup time validation on listing create and edit
 
 ## Tech Stack
 
-- **Frontend**: Next.js 14, React, Tailwind CSS
-- **Backend**: Next.js API Routes, MongoDB, Mongoose
-- **Authentication**: NextAuth.js
-- **Maps**: Google Maps API
+- **Frontend**: Next.js 14 (App Router), React, Tailwind CSS
+- **Backend**: Next.js API Routes, MongoDB, Mongoose (with discriminators for Donor / Recipient)
+- **Authentication**: NextAuth.js (Credentials provider, JWT sessions)
+- **Maps**: Leaflet + React-Leaflet with OpenStreetMap tiles
+- **Charts**: Recharts (demo trend data on the landing page)
 - **Icons**: Lucide React
-- **Database**: MongoDB with geospatial indexing
+- **Database**: MongoDB with 2dsphere geospatial indexing
 
 ## Prerequisites
 
 Before running the application, make sure you have:
 
 1. **Node.js** (v18 or higher)
-2. **MongoDB** (local or cloud instance)
-3. **Google Maps API Key** (for location services)
+2. **MongoDB** (local instance or MongoDB Atlas)
 
 ## Installation & Setup
 
@@ -57,32 +59,28 @@ npm install
 
 ### 3. Environment Configuration
 
-Create a `.env.local` file in the root directory:
+Create a `.env` file in the root directory:
 
 ```env
 # Database
 MONGODB_URI=mongodb://localhost:27017/next-bite
+# Or, with Atlas (URL-encode any special characters in the password):
+# MONGODB_URI=mongodb+srv://<user>:<password>@<cluster>/next-bite?appName=Cluster0
 
 # NextAuth
-NEXTAUTH_URL=http://localhost:3001
+NEXTAUTH_URL=http://localhost:3000
 NEXTAUTH_SECRET=your-secret-key-here
-
-# Google Maps API (required for location services)
-NEXT_PUBLIC_GOOGLE_MAPS_API_KEY=your-google-maps-api-key-here
 ```
 
-### 4. Google Maps API Setup
+Generate a strong `NEXTAUTH_SECRET` with:
 
-1. Go to [Google Cloud Console](https://console.cloud.google.com/)
-2. Create a new project or select existing one
-3. Enable the following APIs:
-   - Maps JavaScript API
-   - Geocoding API
-   - Places API
-4. Create credentials (API Key)
-5. Add the API key to your `.env.local` file
+```bash
+openssl rand -base64 32
+```
 
-### 5. Database Setup
+For production, set `NEXTAUTH_URL` to your deployed URL (no trailing slash).
+
+### 4. Database Setup
 
 Make sure MongoDB is running:
 
@@ -91,8 +89,10 @@ Make sure MongoDB is running:
 mongod
 
 # Or use MongoDB Atlas (cloud)
-# Update MONGODB_URI in .env.local with your Atlas connection string
+# Update MONGODB_URI in .env with your Atlas connection string
 ```
+
+On first run, the app creates the required collections automatically. Geospatial indexes are defined on the `FoodListing` model.
 
 ## Running the Application
 
@@ -102,7 +102,7 @@ mongod
 npm run dev
 ```
 
-The application will be available at `http://localhost:3001`
+The application will be available at `http://localhost:3000`.
 
 ### Production Build
 
@@ -115,133 +115,137 @@ npm start
 
 ### For Donors
 
-1. **Register/Login** as a donor
+1. **Register / Login** as a donor
 2. **Create Food Listings**:
-   - Add food details (title, description, servings)
-   - Set expiry and pickup times
+   - Add food details (title, description, servings, estimated value)
+   - Set expiry and preferred pickup times
    - Specify location (auto-detected or manual)
-   - Add dietary information and allergens
-3. **Manage Requests**:
-   - View pickup requests from recipients
-   - Accept/reject requests
-   - Track pickup status in real-time
-4. **Track Donations**:
-   - Monitor your food sharing impact
-   - View ratings and reviews
+   - Choose food types, allergens, and upload images
+3. **Manage Listings**:
+   - View all your listings in "My Listings"
+   - Edit or delete any listing
+4. **Manage Requests**:
+   - Accept / reject pickup requests from recipients
+   - Progress pickups through `accepted → en_route → arrived → completed`
+   - Rate the recipient after completion
+5. **Track Donations**:
+   - See listing ratings and reviews
+   - Get notifications for every incoming request
 
 ### For Recipients
 
-1. **Register/Login** as a recipient
+1. **Register / Login** as a recipient
 2. **Browse Food Listings**:
-   - Use map view to see nearby food
-   - Filter by food type, distance, price
-   - Search by keywords
+   - Switch between grid, list, and map views
+   - Filter by food type, distance (5 – 50 km), max price, or keyword search
 3. **Request Pickups**:
-   - Select desired food items
-   - Add pickup messages
-   - Track request status
+   - Send a pickup request with an optional message
+   - Track the request in "My Pickups"
 4. **Manage Pickups**:
-   - View accepted requests
-   - Track donor location in real-time
-   - Rate and review experiences
+   - Watch live status updates from the donor
+   - Cancel a pending or accepted pickup if plans change
+   - Rate and review the donor after completion
 
 ## API Endpoints
 
 ### Food Listings
 
-- `GET /api/listings` - Get food listings with filters
-- `POST /api/listings` - Create new food listing
-- `GET /api/listings/[id]` - Get single listing
-- `PUT /api/listings/[id]` - Update listing
-- `DELETE /api/listings/[id]` - Delete listing
+- `GET /api/listings` - Get food listings (supports `lat`, `lng`, `radius`, `foodType`, `status`, `donorId`, `includeAllStatuses`, `limit`)
+- `POST /api/listings` - Create a new listing (GeoJSON coordinates)
+- `GET /api/listings/[id]` - Get a single listing
+- `PUT /api/listings/[id]` - Update a listing
+- `DELETE /api/listings/[id]` - Delete a listing
 
 ### Pickup Requests
 
-- `GET /api/pickup-requests` - Get pickup requests
-- `POST /api/pickup-requests` - Create pickup request
-- `GET /api/pickup-requests/[id]` - Get single request
-- `PUT /api/pickup-requests/[id]` - Update request status
+- `GET /api/pickup-requests` - Get pickup requests (by `userId` + `role` = `donor` | `recipient`)
+- `POST /api/pickup-requests` - Create a pickup request (notifies donor)
+- `GET /api/pickup-requests/[id]` - Get a single request
+- `PUT /api/pickup-requests/[id]` - Update request status, or submit a rating / review
 
 ### Notifications
 
-- `GET /api/notifications` - Get user notifications
-- `POST /api/notifications` - Create notification
-- `PUT /api/notifications/[id]` - Update notification
+- `GET /api/notifications` - Get notifications for a user
+- `POST /api/notifications` - Create a notification
+- `PUT /api/notifications/[id]` - Mark a notification as read / update
 - `PUT /api/notifications/mark-all-read` - Mark all as read
+- `DELETE /api/notifications/[id]` - Delete a notification
 
 ### User Management
 
-- `POST /api/register` - User registration
-- `GET /api/donor/[email]` - Get donor profile
-- `POST /api/userExists` - Check user existence
+- `POST /api/register` - User registration (donor or recipient)
+- `GET /api/donor/[email]` - Get user profile by email
+- `PUT /api/donor/[email]` - Update user profile (uses correct discriminator)
+- `POST /api/userExists` - Check if a user exists
+
+### Uploads & Stats
+
+- `POST /api/upload` - Upload an image (multipart/form-data, max 5 MB, stored under `public/uploads/`)
+- `GET /api/stats` - Aggregate platform stats (listings, pickups, users, etc.)
 
 ## Database Models
 
 ### User Model
 
-- Basic user information (name, email, phone, address)
-- Role-based discrimination (donor/recipient)
-- Location coordinates and preferences
+- Basic user info (name, email, phone, address, coordinates)
+- Role-based discrimination (`Donor` / `Recipient`)
+- Role-specific fields (pickup notes, avg servings, org type, allergies, avg requirement)
 
 ### FoodListing Model
 
-- Food details (title, description, servings, types)
-- Location with geospatial indexing
-- Timing (expiry, pickup times)
-- Status tracking and reservations
-- Rating and review system
+- Food details (title, description, servings, food types, allergens, dietary flags, estimated value, images)
+- Location stored as GeoJSON `Point` with a `2dsphere` index
+- Timing (expiry, pickup times) and status lifecycle
+- Embedded `reviews` and computed average `rating`
 
 ### PickupRequest Model
 
-- Request details and status
-- Location tracking for both parties
-- Real-time status updates
-- Completion ratings
+- References to listing, donor, and recipient
+- Status lifecycle (`pending`, `accepted`, `rejected`, `en_route`, `arrived`, `completed`, `cancelled`)
+- Requested / actual pickup times and completion timestamps
+- Recipient location snapshot for coordination
 
 ### Notification Model
 
-- User-specific notifications
-- Type-based categorization
-- Read/unread status tracking
+- User-scoped notifications
+- Type-based categorization (pickup_request, pickup_accepted, pickup_rejected, pickup_completed, etc.)
+- Read / unread state and arbitrary `data` payload
 
 ## Key Features Implementation
 
 ### Geo-location Services
 
-- Automatic location detection using browser geolocation API
-- Google Maps integration for visual representation
-- Geospatial queries for nearby food listings
-- Real-time location tracking during pickups
+- Browser geolocation API for auto-detection on registration, listing creation, and browsing
+- Leaflet + OpenStreetMap for map rendering (donor profile, recipient browse, food map)
+- MongoDB `$near` queries over GeoJSON Point coordinates for radius search
 
-### Real-time Tracking
+### Status Tracking
 
-- Location updates during pickup process
-- Status progression (pending → accepted → en_route → arrived → completed)
-- Estimated arrival times
-- Live location sharing between donor and recipient
+- Status progression: `pending → accepted → en_route → arrived → completed`
+- Cancel / reject paths supported on both sides
+- Each transition emits a notification to the counterparty
 
 ### Notification System
 
-- Instant notifications for pickup requests
-- Status change alerts
-- System announcements
-- Unread count tracking
-- Mark as read functionality
+- Shared `lib/notify` helper creates notifications from pickup API routes
+- Notification bell in the header (`NotificationCenter`) + dedicated `/notifications` page
+- Filters (all / unread), mark-as-read, mark-all-read, and delete
 
 ## Deployment
 
 ### Vercel (Recommended)
 
 1. Push code to GitHub
-2. Connect repository to Vercel
-3. Add environment variables in Vercel dashboard
-4. Deploy automatically
+2. Connect the repository to Vercel
+3. Add `MONGODB_URI`, `NEXTAUTH_URL`, and `NEXTAUTH_SECRET` as environment variables
+4. Deploy
+
+Note: local image uploads are written to `public/uploads/`, which is ephemeral on most serverless hosts. For production you may want to swap `app/api/upload/route.js` for an object-storage provider (S3, Cloudinary, etc.).
 
 ### Other Platforms
 
-- **Netlify**: For static hosting (requires API routes)
-- **Railway**: For full-stack deployment
-- **DigitalOcean**: For custom server setup
+- **Railway**: For full-stack deployment with persistent storage
+- **DigitalOcean / any Node host**: Works with `npm run build && npm start`
 
 ## Contributing
 
@@ -254,25 +258,6 @@ npm start
 ## License
 
 This project is licensed under the MIT License.
-
-## Support
-
-For support and questions:
-
-- Create an issue in the GitHub repository
-- Check the documentation
-- Review the API endpoints
-
-## Roadmap
-
-- [ ] Mobile app development
-- [ ] Push notifications
-- [ ] Advanced analytics dashboard
-- [ ] Integration with food delivery services
-- [ ] Multi-language support
-- [ ] Advanced reporting features
-- [ ] Social sharing capabilities
-- [ ] Gamification elements
 
 ---
 
