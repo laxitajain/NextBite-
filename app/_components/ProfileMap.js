@@ -148,7 +148,7 @@ export default function ProfileMap({ coordinates, address, className = "" }) {
           </div>
           <p className="text-gray-600">No location set</p>
           <p className="text-sm text-gray-500">
-            Click "Update Location" to set your coordinates
+            Click &quot;Update Location&quot; to set your coordinates
           </p>
         </div>
       </div>
