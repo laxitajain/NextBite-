@@ -1,5 +1,9 @@
 <p align="center">
-  <img src="public/final.png" alt="NextBite logo" width="56" />
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="public/light.png" />
+    <source media="(prefers-color-scheme: light)" srcset="public/final.png" />
+    <img src="public/final.png" alt="NextBite logo" width="88" />
+  </picture>
 </p>
 <h1 align="center">NextBite - Food Redistribution Platform</h1>
 
