@@ -1,10 +1,13 @@
-# NextBite - Food Redistribution Platform
+<p align="center">
+  <img src="public/final.png" alt="NextBite logo" width="56" />
+</p>
+<h1 align="center">NextBite - Food Redistribution Platform</h1>
 
 A comprehensive food redistribution platform that connects donors and recipients to reduce food waste and help those in need. Built with Next.js, MongoDB, and real-time location tracking.
 
 ## Features
 
-### 🍽️ Core Features
+### Core Features
 
 - **Food Listings**: Donors can create, edit, and delete detailed food listings with images, location, expiry time, and dietary information
 - **Geo-location Services**: Browser geolocation + MongoDB geospatial indexing for nearby pickup discovery
@@ -15,7 +18,7 @@ A comprehensive food redistribution platform that connects donors and recipients
 - **Image Uploads**: Attach photos to food listings via the built-in upload API
 - **Platform Stats**: Live aggregate stats (total listings, completed pickups, servings, users) on the landing page
 
-### 🎯 Key Functionality
+### Key Functionality
 
 - **Donor Dashboard**: Create listings, manage "My Listings" (edit/delete), handle incoming pickup requests
 - **Recipient Interface**: Browse nearby food in grid / list / map views, filter by type, radius and price, request pickups, track "My Pickups"
@@ -261,4 +264,4 @@ This project is licensed under the MIT License.
 
 ---
 
-**NextBite** - Making every bite count, reducing food waste one meal at a time. 🍽️✨
+**NextBite** - Making every bite count, reducing food waste one meal at a time.
