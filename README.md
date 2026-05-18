@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="public/light.png#gh-dark-mode-only" alt="NextBite logo (dark mode)" width="88" />
+  <img src="public/footer.png#gh-dark-mode-only" alt="NextBite logo (dark mode)" width="88" />
   <img src="public/final.png#gh-light-mode-only" alt="NextBite logo (light mode)" width="88" />
 </p>
 <h1 align="center">NextBite - Food Redistribution Platform</h1>
