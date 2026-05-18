@@ -7,9 +7,12 @@ export async function POST(req) {
     await connectMongoDB();
     const { email } = await req.json();
     const user = await User.findOne({ email }).select("_id");
-    console.log("user: ", user);
     return NextResponse.json({ user });
   } catch (error) {
-    console.log(error);
+    console.error("userExists error:", error);
+    return NextResponse.json(
+      { message: "Internal server error" },
+      { status: 500 }
+    );
   }
 }

@@ -19,7 +19,7 @@ const pickupRequestSchema = new mongoose.Schema(
     },
     status: {
       type: String,
-      enum: ["pending", "accepted", "rejected", "completed", "cancelled"],
+      enum: ["pending", "accepted", "en_route", "arrived", "rejected", "completed", "cancelled"],
       default: "pending",
     },
     message: {

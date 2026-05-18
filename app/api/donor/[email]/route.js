@@ -41,6 +41,7 @@ export async function PUT(request, { params }) {
       city,
       pincode,
       coordinates,
+      image,
       // Donor-only
       foodTypes,
       pickupNotes,
@@ -68,6 +69,7 @@ export async function PUT(request, { params }) {
     if (city !== undefined) updateData.city = city;
     if (pincode !== undefined) updateData.pincode = pincode;
     if (coordinates !== undefined) updateData.coordinates = coordinates;
+    if (image !== undefined) updateData.image = image;
 
     if (user.role === "donor") {
       if (foodTypes !== undefined) updateData.foodTypes = foodTypes;

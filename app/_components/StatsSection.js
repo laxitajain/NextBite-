@@ -11,21 +11,16 @@ import {
 } from "recharts";
 import { useEffect, useState } from "react";
 
-const dataPie = [
-  { name: "Meals Shared", value: 68 },
-  { name: "Food Wasted", value: 32 },
-];
-
 const COLORS = ["#F59E0B", "#F472B6"];
 
-const barDataMonthly = [
+const barDataMonthlyDemo = [
   { month: "Jan", members: 20 },
   { month: "Feb", members: 50 },
   { month: "Mar", members: 80 },
   { month: "Apr", members: 120 },
 ];
 
-const barDataYearly = [
+const barDataYearlyDemo = [
   { year: "2021", members: 200 },
   { year: "2022", members: 500 },
   { year: "2023", members: 850 },
@@ -54,27 +49,46 @@ export default function StatsSection() {
     return Math.round((stats.completedPickups / stats.totalListings) * 100);
   })();
 
-  const livePie = [
+  const pieData = [
     { name: "Meals Shared", value: sharedRatio },
     { name: "Food Wasted", value: 100 - sharedRatio },
   ];
 
+  const allMonths = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
+
+  const paddedMonthly = (() => {
+    if (!stats?.monthlyData?.length) return barDataMonthlyDemo;
+    const map = {};
+    stats.monthlyData.forEach((m) => { map[m.month] = m.members; });
+    return allMonths.map((m) => ({ month: m, members: map[m] || 0 }));
+  })();
+
+  const paddedYearly = (() => {
+    if (!stats?.yearlyData?.length) return barDataYearlyDemo;
+    const currentYear = new Date().getFullYear();
+    const startYear = currentYear - 4;
+    const map = {};
+    stats.yearlyData.forEach((y) => { map[y.year] = y.members; });
+    const result = [];
+    for (let y = startYear; y <= currentYear; y++) {
+      result.push({ year: String(y), members: map[String(y)] || 0 });
+    }
+    return result;
+  })();
+
+  const barData = view === "monthly" ? paddedMonthly : paddedYearly;
+
   return (
     <div className="flex flex-wrap gap-8 py-10">
-      {/* Meals Shared Card */}
-      <div className="bg-white hover:shadow-lg rounded-2xl p-6 shadow-md w-full md:w-[300px] transform transition-transform duration-300 hover:scale-105">
+      {/* Community Impact Card */}
+      <div className="bg-primary hover:shadow-lg rounded-2xl p-6 shadow-md w-full md:w-[300px] transform transition-transform duration-300 hover:scale-105">
         <div className="flex items-center justify-between mb-1">
-          <h3 className="text-lg font-extrabold">Community Impact</h3>
-          {!stats && (
-            <span className="text-[10px] uppercase bg-gray-100 text-gray-500 px-2 py-0.5 rounded">
-              Demo data
-            </span>
-          )}
+          <h3 className="text-lg font-extrabold text-accent-rust">Community Impact</h3>
         </div>
 
         <PieChart width={180} height={180}>
           <Pie
-            data={stats ? livePie : dataPie}
+            data={pieData}
             cx="50%"
             cy="50%"
             innerRadius={50}
@@ -82,31 +96,29 @@ export default function StatsSection() {
             paddingAngle={5}
             dataKey="value"
             labelLine={false}
-            label={({ cx, cy }) => {
-              return (
-                <>
-                  <text
-                    x={cx}
-                    y={cy}
-                    textAnchor="middle"
-                    dominantBaseline="middle"
-                    className="text-sm font-bold fill-primary"
-                  >
-                    Meals Saved
-                  </text>
-                </>
-              );
-            }}
+            label={({ cx, cy }) => (
+              <text
+                x={cx}
+                y={cy}
+                textAnchor="middle"
+                dominantBaseline="middle"
+                className="text-sm font-bold"
+                fill="#DFD6C4"
+              >
+                Meals Saved
+              </text>
+            )}
           >
-            {dataPie.map((entry, index) => (
+            {pieData.map((entry, index) => (
               <Cell
                 key={`cell-${index}`}
                 fill={COLORS[index % COLORS.length]}
+                stroke="none"
               />
             ))}
           </Pie>
         </PieChart>
-        <div className="text-center text-2xl font-anton">
+        <div className="text-center text-2xl font-anton text-secondary">
           {sharedRatio}% Shared
         </div>
         <div className="flex justify-between text-sm mt-4">
@@ -116,25 +128,26 @@ export default function StatsSection() {
       </div>
 
       {/* Members Joined Card */}
-      <div className="bg-white rounded-2xl p-6 shadow-md flex-1 min-w-[300px] transform hover:shadow-lg transition-transform duration-300 hover:scale-105 sm:max-w-[100px]">
+      <div className="bg-primary rounded-2xl p-6 shadow-md flex-1 min-w-[300px] transform hover:shadow-lg transition-transform duration-300 hover:scale-105">
         <div className="flex justify-between items-center mb-2">
-          <h3 className="text-lg font-extrabold">Members Joined</h3>
-          <span className="text-[10px] uppercase bg-gray-100 text-gray-500 px-2 py-0.5 rounded">
-            Demo trend
-          </span>
+          <h3 className="text-lg font-extrabold text-accent-rust">Members Joined</h3>
           <div className="flex space-x-2 text-sm font-semibold">
             <button
               onClick={() => setView("monthly")}
               className={`px-3 py-1 rounded-full ${
-                view === "monthly" ? "bg-secondary" : "bg-accent-rust"
+                view === "monthly"
+                  ? "bg-secondary text-primary"
+                  : "bg-accent-rust text-primary"
               }`}
             >
               Monthly
             </button>
             <button
               onClick={() => setView("yearly")}
-              className={`px-3 py-1 rounded-full  ${
-                view === "yearly" ? "bg-secondary" : "bg-accent-light"
+              className={`px-3 py-1 rounded-full ${
+                view === "yearly"
+                  ? "bg-secondary text-primary"
+                  : "bg-accent-rust text-primary"
               }`}
             >
               Yearly
@@ -142,19 +155,29 @@ export default function StatsSection() {
           </div>
         </div>
 
-        <div className="text-3xl font-anton mb-1">
+        <div className="text-3xl font-anton mb-1 text-accent-rust">
           {stats ? stats.totalUsers.toLocaleString() : "1,286"}
         </div>
-        <p className="text-green-600 text-sm">
+        <p className="text-accent-rust text-sm">
           {stats
             ? `${stats.donors} donors · ${stats.recipients} recipients`
             : "↑ 24.6% vs 2024"}
         </p>
 
         <ResponsiveContainer width="100%" height={120}>
-          <BarChart data={view === "monthly" ? barDataMonthly : barDataYearly}>
-            <XAxis dataKey={view === "monthly" ? "month" : "year"} />
-            <Tooltip />
+          <BarChart data={barData}>
+            <XAxis
+              dataKey={view === "monthly" ? "month" : "year"}
+              tick={{ fill: "#DFD6C4" }}
+            />
+            <Tooltip
+              contentStyle={{
+                backgroundColor: "#480102",
+                border: "1px solid #DFD6C4",
+                borderRadius: "8px",
+                color: "#DFD6C4",
+              }}
+            />
             <Bar dataKey="members" fill="#F472B6" radius={[6, 6, 0, 0]} />
           </BarChart>
         </ResponsiveContainer>

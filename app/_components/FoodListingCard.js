@@ -251,13 +251,25 @@ export default function FoodListingCard({ listing, user, onRequestPickup }) {
             <Heart className="w-4 h-4" />
           </button>
 
-          <button
-            type="button"
-            className="p-2 border border-accent-rust rounded-full hover:bg-accent-light text-primary transition"
-            aria-label="Call donor"
-          >
-            <Phone className="w-4 h-4" />
-          </button>
+          {listing.donorId?.phone && (
+            <a
+              href={`tel:${listing.donorId.phone}`}
+              className="p-2 border border-accent-rust rounded-full hover:bg-accent-light text-primary transition"
+              aria-label="Call donor"
+            >
+              <Phone className="w-4 h-4" />
+            </a>
+          )}
+          {!listing.donorId?.phone && (
+            <button
+              type="button"
+              className="p-2 border border-accent-rust rounded-full hover:bg-accent-light text-primary transition opacity-50 cursor-not-allowed"
+              aria-label="Call donor"
+              disabled
+            >
+              <Phone className="w-4 h-4" />
+            </button>
+          )}
         </div>
 
         {listing.status === "reserved" &&

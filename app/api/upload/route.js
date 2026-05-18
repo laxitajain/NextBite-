@@ -1,8 +1,11 @@
 import { NextResponse } from "next/server";
-import { writeFile, mkdir } from "fs/promises";
-import { existsSync } from "fs";
-import path from "path";
-import crypto from "crypto";
+import { v2 as cloudinary } from "cloudinary";
+
+cloudinary.config({
+  cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
+  api_key: process.env.CLOUDINARY_API_KEY,
+  api_secret: process.env.CLOUDINARY_API_SECRET,
+});
 
 const ALLOWED = new Set([
   "image/jpeg",
@@ -10,7 +13,7 @@ const ALLOWED = new Set([
   "image/webp",
   "image/gif",
 ]);
-const MAX_SIZE = 5 * 1024 * 1024; // 5MB
+const MAX_SIZE = 5 * 1024 * 1024;
 
 export async function POST(request) {
   try {
@@ -41,20 +44,29 @@ export async function POST(request) {
     const bytes = await file.arrayBuffer();
     const buffer = Buffer.from(bytes);
 
-    const uploadsDir = path.join(process.cwd(), "public", "uploads");
-    if (!existsSync(uploadsDir)) {
-      await mkdir(uploadsDir, { recursive: true });
-    }
+    const result = await new Promise((resolve, reject) => {
+      cloudinary.uploader
+        .upload_stream(
+          {
+            folder: "nextbite",
+            resource_type: "image",
+            transformation: [
+              { width: 800, height: 800, crop: "limit", quality: "auto" },
+            ],
+          },
+          (error, result) => {
+            if (error) reject(error);
+            else resolve(result);
+          }
+        )
+        .end(buffer);
+    });
 
-    const ext = file.name.includes(".")
-      ? file.name.slice(file.name.lastIndexOf(".") + 1).toLowerCase()
-      : "bin";
-    const filename = `${crypto.randomUUID()}.${ext}`;
-    const filepath = path.join(uploadsDir, filename);
-    await writeFile(filepath, buffer);
-
-    const url = `/uploads/${filename}`;
-    return NextResponse.json({ success: true, url });
+    return NextResponse.json({
+      success: true,
+      url: result.secure_url,
+      public_id: result.public_id,
+    });
   } catch (error) {
     console.error("Upload error:", error);
     return NextResponse.json(
