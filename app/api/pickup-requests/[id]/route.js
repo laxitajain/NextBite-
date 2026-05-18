@@ -52,17 +52,20 @@ export async function PUT(request, { params }) {
     await connectMongoDB();
 
     const updateData = {};
+    const trackingStatuses = ["en_route", "arrived", "delayed"];
+    const isTrackingOnly = status === "delayed";
 
-    if (status) updateData.status = status;
+    if (status && !isTrackingOnly) updateData.status = status;
     if (message) updateData.message = message;
     if (actualPickupTime)
       updateData.actualPickupTime = new Date(actualPickupTime);
-    if (location && status) {
+
+    if (status && (location || trackingStatuses.includes(status))) {
       updateData.$push = {
         trackingUpdates: {
           timestamp: new Date(),
           status: status,
-          location: location,
+          location: location || undefined,
           message: message || `${status} update`,
         },
       };

@@ -164,3 +164,34 @@ html {
 .animate-border {
   animation: borderRun 1.5s ease-out forwards;
 }
+
+.nb-popup .leaflet-popup-content-wrapper {
+  background: #480102;
+  border: 2px solid #F59E0B;
+  border-radius: 1rem;
+  box-shadow: 0 4px 16px rgba(72, 1, 2, 0.4);
+  color: #EFEEE5;
+}
+
+.nb-popup .leaflet-popup-content {
+  margin: 10px 14px;
+}
+
+.nb-popup .leaflet-popup-tip {
+  background: #480102;
+  border: 1px solid #F59E0B;
+}
+
+.nb-popup .leaflet-popup-close-button {
+  color: #F59E0B;
+  font-size: 18px;
+}
+
+.nb-popup .leaflet-popup-close-button:hover {
+  color: #F472B6;
+}
+
+.nb-popup .leaflet-popup-content-wrapper .font-bold,
+.nb-popup .leaflet-popup-content-wrapper .font-semibold {
+  color: #F59E0B;
+}

@@ -8,7 +8,7 @@ function Logo({ location }) {
         <Image
           width={45}
           height={45}
-          src={location === "header" ? "/final.png" : "/final-footer-f.png"}
+          src={location === "header" ? "/final.png" : "/footer.png"}
           alt="Logo"
           quality={100}
         />

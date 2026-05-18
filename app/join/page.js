@@ -1,11 +1,9 @@
 import JoinForm from "../_components/JoinForm";
-import { connectMongoDB } from "@/lib/mongodb";
+import JoinStats from "../_components/JoinStats";
 
 export const metadata = {
   title: "Join",
 };
-
-connectMongoDB();
 
 function page() {
   return (
@@ -19,9 +17,7 @@ function page() {
 
       <JoinForm />
 
-      <p className="mt-4 text-sm text-gray-600 ">
-        🌱 Over 2,000 meals shared in the last 30 days.
-      </p>
+      <JoinStats />
     </div>
   );
 }

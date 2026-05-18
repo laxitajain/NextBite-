@@ -30,7 +30,7 @@ export default function Home() {
           </div>
           <div className="mt-7">
             {session ? (
-              <Link href="/join">
+              <Link href={`/${session.user?.role || "donor"}`}>
                 <Button>Start contributing</Button>
               </Link>
             ) : (

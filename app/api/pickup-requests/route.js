@@ -90,9 +90,12 @@ export async function POST(request) {
       );
     }
 
-    // Get donor location
+    const geoCoords = listing.location?.coordinates?.coordinates || [];
     const donorLocation = {
-      coordinates: listing.location.coordinates,
+      coordinates: {
+        latitude: geoCoords[1] || 0,
+        longitude: geoCoords[0] || 0,
+      },
       address: listing.location.address,
     };
 

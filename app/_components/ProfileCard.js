@@ -2,9 +2,10 @@
 
 import { useState, useEffect, useCallback } from "react";
 import { useSession } from "next-auth/react";
+import Image from "next/image";
 import Button from "./Button";
 import ProfileMap from "./ProfileMap";
-import { MapPin, User, Mail, Phone, Home, Edit3, Save, X } from "lucide-react";
+import { MapPin, User, Mail, Phone, Home, Edit3, Save, X, Camera } from "lucide-react";
 
 const FOOD_TYPES = [
   "Vegetarian",
@@ -29,11 +30,12 @@ const sectionCard =
   "bg-white/80 backdrop-blur-sm border border-accent-rust/60 rounded-2xl shadow-sm p-6";
 
 export default function ProfileCard() {
-  const { data: session } = useSession();
+  const { data: session, update: updateSession } = useSession();
   const [user, setUser] = useState(null);
   const [isEditing, setIsEditing] = useState(false);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [uploading, setUploading] = useState(false);
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
 
@@ -47,6 +49,7 @@ export default function ProfileCard() {
     foodTypes: [],
     pickupNotes: "",
     avgServings: "",
+    image: null,
   });
 
   const [locationPermission, setLocationPermission] = useState(false);
@@ -69,6 +72,7 @@ export default function ProfileCard() {
           foodTypes: result.data.foodTypes || [],
           pickupNotes: result.data.pickupNotes || "",
           avgServings: result.data.avgServings || "",
+          image: result.data.image || null,
         });
       } else {
         setError("Failed to load profile data");
@@ -108,6 +112,27 @@ export default function ProfileCard() {
     setFormData((prev) => ({ ...prev, [field]: value }));
   };
 
+  const handleImageUpload = async (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setUploading(true);
+    try {
+      const fd = new FormData();
+      fd.append("file", file);
+      const res = await fetch("/api/upload", { method: "POST", body: fd });
+      const result = await res.json();
+      if (result.success) {
+        setFormData((prev) => ({ ...prev, image: result.url }));
+      } else {
+        setError(result.message || "Upload failed");
+      }
+    } catch {
+      setError("Failed to upload image");
+    } finally {
+      setUploading(false);
+    }
+  };
+
   const handleFoodTypeChange = (foodType) => {
     setFormData((prev) => ({
       ...prev,
@@ -139,6 +164,7 @@ export default function ProfileCard() {
         setSuccess("Profile updated successfully!");
         setUser(result.data);
         setIsEditing(false);
+        await updateSession?.();
         setTimeout(() => setSuccess(""), 3000);
       } else {
         setError(result.message || "Failed to update profile");
@@ -163,6 +189,7 @@ export default function ProfileCard() {
       foodTypes: user.foodTypes || [],
       pickupNotes: user.pickupNotes || "",
       avgServings: user.avgServings || "",
+      image: user.image || null,
     });
     setIsEditing(false);
     setError("");
@@ -191,8 +218,24 @@ export default function ProfileCard() {
         <div className="absolute -top-10 -right-10 w-40 h-40 bg-accent-pink/40 rounded-full blur-2xl pointer-events-none" />
         <div className="relative flex flex-col md:flex-row md:items-center md:justify-between gap-4">
           <div className="flex items-center gap-4">
-            <div className="w-16 h-16 bg-gradient-to-br from-accent-pink to-secondary rounded-full flex items-center justify-center shadow-sm">
-              <User className="w-8 h-8 text-white" />
+            <div className="relative group">
+              <div className="w-16 h-16 rounded-full overflow-hidden shadow-sm bg-gradient-to-br from-accent-pink to-secondary flex items-center justify-center">
+                {formData.image ? (
+                  <Image src={formData.image} alt="Profile" width={64} height={64} className="w-full h-full object-cover" />
+                ) : (
+                  <User className="w-8 h-8 text-white" />
+                )}
+              </div>
+              {isEditing && (
+                <label className="absolute inset-0 flex items-center justify-center bg-black/40 rounded-full cursor-pointer opacity-0 group-hover:opacity-100 transition">
+                  {uploading ? (
+                    <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                  ) : (
+                    <Camera className="w-5 h-5 text-white" />
+                  )}
+                  <input type="file" accept="image/*" className="hidden" onChange={handleImageUpload} disabled={uploading} />
+                </label>
+              )}
             </div>
             <div>
               <h2 className="text-2xl md:text-3xl font-anton text-primary">

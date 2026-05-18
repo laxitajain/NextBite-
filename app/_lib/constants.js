@@ -22,7 +22,3 @@ export const benefits = [
   },
 ];
 
-export const sideNavLinks = [
-  { to: "/donor", label: "Dashboard" },
-  { to: "/donor/profile", label: "Profile" },
-];

@@ -1,8 +1,8 @@
 <p align="center">
-  <img src="public/final.png" alt="NextBite logo" width="98" />
-
-<h1 align="center">NextBite - Food Redistribution Platform</h1>
+  <img src="public/light.png#gh-dark-mode-only" alt="NextBite logo (dark mode)" width="88" />
+  <img src="public/final.png#gh-light-mode-only" alt="NextBite logo (light mode)" width="88" />
 </p>
+<h1 align="center">NextBite - Food Redistribution Platform</h1>
 A comprehensive food redistribution platform that connects donors and recipients to reduce food waste and help those in need. Built with Next.js, MongoDB, and real-time location tracking.
 
 ## Features

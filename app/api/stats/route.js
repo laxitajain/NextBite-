@@ -32,6 +32,40 @@ export async function GET() {
     ]);
     const totalServings = servingsAgg[0]?.total || 0;
 
+    const monthlyGrowth = await User.aggregate([
+      {
+        $group: {
+          _id: {
+            year: { $year: "$createdAt" },
+            month: { $month: "$createdAt" },
+          },
+          members: { $sum: 1 },
+        },
+      },
+      { $sort: { "_id.year": 1, "_id.month": 1 } },
+      { $limit: 12 },
+    ]);
+
+    const yearlyGrowth = await User.aggregate([
+      {
+        $group: {
+          _id: { year: { $year: "$createdAt" } },
+          members: { $sum: 1 },
+        },
+      },
+      { $sort: { "_id.year": 1 } },
+    ]);
+
+    const months = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
+    const monthlyData = monthlyGrowth.map((m) => ({
+      month: months[(m._id.month || 1) - 1],
+      members: m.members,
+    }));
+    const yearlyData = yearlyGrowth.map((y) => ({
+      year: String(y._id.year),
+      members: y.members,
+    }));
+
     return NextResponse.json({
       success: true,
       data: {
@@ -41,6 +75,8 @@ export async function GET() {
         totalUsers,
         donors,
         recipients,
+        monthlyData,
+        yearlyData,
       },
     });
   } catch (error) {
