@@ -100,6 +100,14 @@ const foodListingSchema = new mongoose.Schema(
       type: Boolean,
       default: false,
     },
+    pricingType: {
+      type: String,
+      enum: ["free", "discounted"],
+      default: "free",
+    },
+    discountedPrice: {
+      type: Number,
+    },
     estimatedValue: {
       type: Number, // in local currency
     },

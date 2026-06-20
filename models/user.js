@@ -57,6 +57,12 @@ const userSchema = new Schema(
       type: String,
       default: null,
     },
+    savedListings: [
+      {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: "FoodListing",
+      },
+    ],
   },
   options
 );

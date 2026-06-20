@@ -10,6 +10,7 @@ import {
   Star,
   Loader2,
 } from "lucide-react";
+import { useRouter } from "next/navigation";
 import Button from "./Button";
 import { useToast } from "./ToastProvider";
 
@@ -25,6 +26,7 @@ export default function PickupTracker({ pickupRequest, user, onStatusUpdate }) {
   const [submittingRating, setSubmittingRating] = useState(false);
   const [pendingAction, setPendingAction] = useState(null);
   const { toast } = useToast();
+  const router = useRouter();
 
   useEffect(() => {
     onStatusUpdateRef.current = onStatusUpdate;
@@ -144,6 +146,8 @@ export default function PickupTracker({ pickupRequest, user, onStatusUpdate }) {
           onStatusUpdate(result.data);
         }
         toast(`Status updated to ${status.replace("_", " ")}`, "success");
+        // Force refresh Next.js router cache so Server Components (like listing detail pages) are updated
+        router.refresh();
       } else {
         const err = await response.json().catch(() => ({}));
         toast(err.message || "Failed to update status", "error");

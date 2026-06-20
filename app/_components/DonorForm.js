@@ -87,6 +87,8 @@ export default function DonorForm({ user, listing = null, onDone }) {
     allergens: listing?.allergens || [],
     isVegetarian: listing?.isVegetarian || false,
     isVegan: listing?.isVegan || false,
+    pricingType: listing?.pricingType || "free",
+    discountedPrice: listing?.discountedPrice?.toString() || "",
     estimatedValue: listing?.estimatedValue?.toString() || "",
     images: listing?.images || [],
   });
@@ -198,6 +200,9 @@ export default function DonorForm({ user, listing = null, onDone }) {
     if (!formData.title.trim()) newErrors.title = "Title is required";
     if (!formData.description.trim())
       newErrors.description = "Description is required";
+    if (formData.pricingType === "discounted" && (!formData.discountedPrice || Number(formData.discountedPrice) <= 0)) {
+      newErrors.discountedPrice = "Valid price is required for discounted items";
+    }
     if (formData.foodTypes.length === 0)
       newErrors.foodTypes = "At least one food type is required";
     if (!formData.servings || formData.servings <= 0)
@@ -239,6 +244,9 @@ export default function DonorForm({ user, listing = null, onDone }) {
         estimatedValue: formData.estimatedValue
           ? parseFloat(formData.estimatedValue)
           : null,
+        discountedPrice: formData.pricingType === "discounted" && formData.discountedPrice
+          ? parseFloat(formData.discountedPrice)
+          : null,
         location: {
           ...formData.location,
           coordinates: {
@@ -247,6 +255,10 @@ export default function DonorForm({ user, listing = null, onDone }) {
           },
         },
       };
+
+      if (payload.pricingType === "free") {
+        payload.discountedPrice = null;
+      }
 
       if (!isEdit) {
         payload.donorId = user._id;
@@ -441,15 +453,69 @@ export default function DonorForm({ user, listing = null, onDone }) {
                 Vegan
               </span>
             </label>
+          </div>
+        </div>
+
+        {/* Pricing Options */}
+        <div className={sectionCard}>
+          <h3 className="text-lg font-anton text-primary mb-4">Pricing Options</h3>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             <div>
-              <label className={labelBase}>Estimated Value (₹)</label>
+              <label className={labelBase}>Offering Type *</label>
+              <div className="flex gap-4">
+                <label className="flex items-center gap-2 flex-1 cursor-pointer p-3 border border-accent-rust rounded-xl hover:bg-accent-light transition">
+                  <input
+                    type="radio"
+                    name="pricingType"
+                    value="free"
+                    checked={formData.pricingType === "free"}
+                    onChange={handleInputChange}
+                    className="w-4 h-4 text-secondary accent-secondary"
+                  />
+                  <span className="font-semibold text-primary">Donate Free</span>
+                </label>
+                <label className="flex items-center gap-2 flex-1 cursor-pointer p-3 border border-accent-rust rounded-xl hover:bg-accent-light transition">
+                  <input
+                    type="radio"
+                    name="pricingType"
+                    value="discounted"
+                    checked={formData.pricingType === "discounted"}
+                    onChange={handleInputChange}
+                    className="w-4 h-4 text-secondary accent-secondary"
+                  />
+                  <span className="font-semibold text-primary">Sell at Discount</span>
+                </label>
+              </div>
+            </div>
+
+            {formData.pricingType === "discounted" && (
+              <div>
+                <label className={labelBase}>Discounted Price (₹) *</label>
+                <input
+                  type="number"
+                  name="discountedPrice"
+                  value={formData.discountedPrice}
+                  onChange={handleInputChange}
+                  min="0"
+                  step="1"
+                  className={inputBase}
+                  placeholder="Selling price"
+                />
+                {errors.discountedPrice && (
+                  <p className="text-red-600 text-sm mt-1">{errors.discountedPrice}</p>
+                )}
+              </div>
+            )}
+            
+            <div className={formData.pricingType === "free" ? "col-span-1 md:col-span-1" : "col-span-1 md:col-span-2"}>
+              <label className={labelBase}>Estimated Original Value (₹)</label>
               <input
                 type="number"
                 name="estimatedValue"
                 value={formData.estimatedValue}
                 onChange={handleInputChange}
                 min="0"
-                step="0.01"
+                step="1"
                 className={inputBase}
                 placeholder="Optional"
               />

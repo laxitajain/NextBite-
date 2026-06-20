@@ -124,8 +124,8 @@ export default function RecipientPage() {
   }, [activeTab, fetchListings]);
 
   useEffect(() => {
-    if (activeTab === "pickups") fetchMyPickups();
-  }, [activeTab, fetchMyPickups]);
+    if (user?._id) fetchMyPickups();
+  }, [user?._id, fetchMyPickups]);
 
   const handleListingClick = (listing) => {
     setSelectedListing(listing);
@@ -372,6 +372,8 @@ export default function RecipientPage() {
                       key={listing._id}
                       listing={listing}
                       user={user}
+                      initialHasRequested={requests.some(r => (r.listingId?._id || r.listingId) === listing._id && ['pending', 'accepted'].includes(r.status))}
+                      initialIsSaved={user?.savedListings?.includes(listing._id)}
                       onRequestPickup={() => {
                         fetchListings();
                         fetchMyPickups();
@@ -425,6 +427,8 @@ export default function RecipientPage() {
                   <FoodListingCard
                     listing={selectedListing}
                     user={user}
+                    initialHasRequested={requests.some(r => (r.listingId?._id || r.listingId) === selectedListing._id && ['pending', 'accepted'].includes(r.status))}
+                    initialIsSaved={user?.savedListings?.includes(selectedListing._id)}
                     onRequestPickup={() => {
                       fetchListings();
                       fetchMyPickups();

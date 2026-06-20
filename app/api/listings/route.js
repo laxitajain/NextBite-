@@ -111,6 +111,8 @@ export async function POST(request) {
       allergens,
       isVegetarian,
       isVegan,
+      pricingType,
+      discountedPrice,
       estimatedValue,
     } = await request.json();
 
@@ -152,6 +154,8 @@ export async function POST(request) {
       allergens: allergens || [],
       isVegetarian,
       isVegan,
+      pricingType,
+      discountedPrice,
       estimatedValue,
     });
 
@@ -184,5 +188,3 @@ export async function POST(request) {
     );
   }
 }
-
-
