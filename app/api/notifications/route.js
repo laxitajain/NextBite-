@@ -1,14 +1,18 @@
 import { connectMongoDB } from "@/lib/mongodb";
 import Notification from "@/models/notification";
 import { NextResponse } from "next/server";
+import { authError, getRequestUser } from "@/lib/auth";
 
 // GET - Fetch notifications for a user
 export async function GET(request) {
   try {
+    const sessionUser = await getRequestUser(request);
+    if (!sessionUser) return authError();
+
     await connectMongoDB();
 
     const { searchParams } = new URL(request.url);
-    const userId = searchParams.get("userId");
+    const userId = sessionUser.id;
     const page = parseInt(searchParams.get("page")) || 1;
     const limit = parseInt(searchParams.get("limit")) || 20;
     const unreadOnly = searchParams.get("unreadOnly") === "true";
@@ -61,30 +65,6 @@ export async function GET(request) {
 
 // POST - Create new notification
 export async function POST(request) {
-  try {
-    const { userId, type, title, message, data } = await request.json();
-
-    await connectMongoDB();
-
-    const notification = await Notification.create({
-      userId,
-      type,
-      title,
-      message,
-      data: data || {},
-    });
-
-    return NextResponse.json({
-      success: true,
-      data: notification,
-      message: "Notification created successfully",
-    });
-  } catch (error) {
-    console.error("Error creating notification:", error);
-    return NextResponse.json(
-      { success: false, message: "Failed to create notification" },
-      { status: 500 }
-    );
-  }
+  return authError(403);
 }
 

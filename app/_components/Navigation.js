@@ -7,7 +7,7 @@ import Button from "./Button";
 import { useSession } from "next-auth/react";
 
 export default function Navigation() {
-  const { data: session } = useSession();
+  const { data: session, status } = useSession();
 
   return (
     <nav className="z-10 text-[1.2rem]">
@@ -20,12 +20,12 @@ export default function Navigation() {
             <Link href={link.to}>{link.label}</Link>
           </li>
         ))}
-        {!session && (
+        {status === "unauthenticated" && (
           <>
             <li className="h-10 px-0.5 py-2 font-bold transition-colors cursor-pointer hidden sm:block">
               <Link href="/join">Join us</Link>
             </li>
-            <li>
+            <li className="hidden sm:block">
               <Button>
                 {" "}
                 <Link href="/login">Log in</Link>
@@ -38,18 +38,12 @@ export default function Navigation() {
             <li className="h-10 px-0.5 py-2 font-semibold transition-colors cursor-pointer hidden sm:block">
               <Link href="/donor">Create Listing</Link>
             </li>
-            <li className="h-10 px-0.5 py-2 font-semibold transition-colors cursor-pointer hidden sm:block">
-              <Link href="/recipient">Browse Food</Link>
-            </li>
           </>
         )}
         {session?.user.role === "recipient" && (
           <>
             <li className="h-10 px-0.5 py-2 font-semibold transition-colors cursor-pointer hidden sm:block">
               <Link href="/recipient">Find Food</Link>
-            </li>
-            <li className="h-10 px-0.5 py-2 font-semibold transition-colors cursor-pointer hidden sm:block">
-              <Link href="/donor">Become Donor</Link>
             </li>
           </>
         )}

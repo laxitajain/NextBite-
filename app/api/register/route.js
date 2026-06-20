@@ -25,6 +25,26 @@ export async function POST(req) {
       totalMealsReceived,
     } = await req.json();
 
+    const normalizedEmail = email?.trim().toLowerCase();
+    if (
+      !name?.trim() ||
+      !normalizedEmail ||
+      typeof password !== "string" ||
+      password.length < 8 ||
+      !phone ||
+      !address ||
+      !city ||
+      !pincode
+    ) {
+      return NextResponse.json(
+        {
+          message:
+            "Complete all required fields and use at least 8 password characters.",
+        },
+        { status: 400 }
+      );
+    }
+
     const hashedPassword = await bcrypt.hash(password, 10);
     await connectMongoDB();
 
@@ -33,7 +53,7 @@ export async function POST(req) {
     if (role === "donor") {
       user = await Donor.create({
         name,
-        email,
+        email: normalizedEmail,
         password: hashedPassword,
         phone,
         address,
@@ -48,7 +68,7 @@ export async function POST(req) {
     } else if (role === "recipient") {
       user = await Recipient.create({
         name,
-        email,
+        email: normalizedEmail,
         password: hashedPassword,
         phone,
         address,

@@ -97,6 +97,15 @@ const pickupRequestSchema = new mongoose.Schema(
 );
 
 pickupRequestSchema.index({ listingId: 1, recipientId: 1 });
+pickupRequestSchema.index(
+  { listingId: 1, recipientId: 1, status: 1 },
+  {
+    unique: true,
+    partialFilterExpression: {
+      status: { $in: ["pending", "accepted", "en_route", "arrived"] },
+    },
+  }
+);
 pickupRequestSchema.index({ donorId: 1, status: 1 });
 pickupRequestSchema.index({ recipientId: 1, status: 1 });
 

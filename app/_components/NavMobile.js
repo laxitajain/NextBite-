@@ -4,14 +4,23 @@ import { useState } from "react";
 import { Squash as Hamburger } from "hamburger-react";
 import { navLinks } from "../_lib/constants";
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import { useSession } from "next-auth/react";
 import Button from "./Button";
+import { signOut } from "next-auth/react";
+import { Bell, LayoutDashboard, LogOut, User } from "lucide-react";
 
 function NavMobile() {
   const [isOpen, setOpen] = useState(false);
   const pathname = usePathname();
   const { data: session } = useSession();
+  const router = useRouter();
+
+  const handleSignOut = async () => {
+    await signOut({ redirect: false, callbackUrl: "/" });
+    router.replace("/");
+    router.refresh();
+  };
 
   return (
     <div className="ml-20 relative z-50">
@@ -61,14 +70,60 @@ function NavMobile() {
           })}
           {!session && (
             <>
-              <li className="h-10 px-0.5 py-2 font-semibold transition-colors cursor-pointer hidden sm:block">
-                <Link href="/join">Join us</Link>
+              <li>
+                <Link
+                  href="/join"
+                  onClick={() => setOpen(false)}
+                  className="block w-full px-4 py-3 rounded-lg hover:bg-white/10"
+                >
+                  Join us
+                </Link>
               </li>
               <li>
                 <Button>
                   {" "}
                   <Link href="/login">Log in</Link>
                 </Button>
+              </li>
+            </>
+          )}
+          {session && (
+            <>
+              <li>
+                <Link
+                  href={`/${session.user.role}`}
+                  onClick={() => setOpen(false)}
+                  className="flex items-center gap-2 px-4 py-3 rounded-lg hover:bg-white/10"
+                >
+                  <LayoutDashboard className="w-4 h-4" /> Dashboard
+                </Link>
+              </li>
+              <li>
+                <Link
+                  href={`/${session.user.role}/profile`}
+                  onClick={() => setOpen(false)}
+                  className="flex items-center gap-2 px-4 py-3 rounded-lg hover:bg-white/10"
+                >
+                  <User className="w-4 h-4" /> Profile
+                </Link>
+              </li>
+              <li>
+                <Link
+                  href="/notifications"
+                  onClick={() => setOpen(false)}
+                  className="flex items-center gap-2 px-4 py-3 rounded-lg hover:bg-white/10"
+                >
+                  <Bell className="w-4 h-4" /> Notifications
+                </Link>
+              </li>
+              <li className="border-t border-white/20 pt-3">
+                <button
+                  type="button"
+                  onClick={handleSignOut}
+                  className="flex w-full items-center gap-2 px-4 py-3 rounded-lg text-red-200 hover:bg-white/10"
+                >
+                  <LogOut className="w-4 h-4" /> Log out
+                </button>
               </li>
             </>
           )}

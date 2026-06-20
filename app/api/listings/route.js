@@ -2,10 +2,14 @@ import { connectMongoDB } from "@/lib/mongodb";
 import FoodListing from "@/models/foodListing";
 import { createNotification } from "@/lib/notify";
 import { NextResponse } from "next/server";
+import { authError, getRequestUser, hasRole } from "@/lib/auth";
 
 // GET - Fetch food listings with optional filters
 export async function GET(request) {
   try {
+    const sessionUser = await getRequestUser(request);
+    if (!sessionUser) return authError();
+
     await connectMongoDB();
 
     const { searchParams } = new URL(request.url);
@@ -22,8 +26,13 @@ export async function GET(request) {
     const limit = parseInt(searchParams.get("limit")) || 20;
 
     let query = {};
+    if (includeAllStatuses || donorId) {
+      if (donorId && donorId !== sessionUser.id) return authError(403);
+      if (includeAllStatuses && !donorId) return authError(403);
+    }
     if (!includeAllStatuses) {
       query.status = status;
+      if (status === "available") query.expiryTime = { $gt: new Date() };
     }
 
     if (donorId) {
@@ -84,8 +93,11 @@ export async function GET(request) {
 // POST - Create new food listing
 export async function POST(request) {
   try {
+    const sessionUser = await getRequestUser(request);
+    if (!sessionUser) return authError();
+    if (!hasRole(sessionUser, "donor")) return authError(403);
+
     const {
-      donorId,
       title,
       description,
       foodTypes,
@@ -126,7 +138,7 @@ export async function POST(request) {
     }
 
     const listing = await FoodListing.create({
-      donorId,
+      donorId: sessionUser.id,
       title,
       description,
       foodTypes,
@@ -149,7 +161,7 @@ export async function POST(request) {
     );
 
     await createNotification({
-      userId: donorId,
+      userId: sessionUser.id,
       type: "listing_created",
       title: "Listing published",
       message: `Your food listing "${title}" is now live.`,

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import {
   MapPin,
   Clock,
@@ -8,10 +8,13 @@ import {
   CheckCircle,
   AlertCircle,
   Star,
+  Loader2,
 } from "lucide-react";
 import Button from "./Button";
+import { useToast } from "./ToastProvider";
 
 export default function PickupTracker({ pickupRequest, user, onStatusUpdate }) {
+  const onStatusUpdateRef = useRef(onStatusUpdate);
   const [currentLocation, setCurrentLocation] = useState(null);
   const [isTracking, setIsTracking] = useState(false);
   const [estimatedArrival, setEstimatedArrival] = useState(null);
@@ -20,24 +23,51 @@ export default function PickupTracker({ pickupRequest, user, onStatusUpdate }) {
   const [ratingHover, setRatingHover] = useState(0);
   const [ratingReview, setRatingReview] = useState("");
   const [submittingRating, setSubmittingRating] = useState(false);
+  const [pendingAction, setPendingAction] = useState(null);
+  const { toast } = useToast();
 
   useEffect(() => {
-    if (pickupRequest?.status === "accepted" && navigator.geolocation) {
-      startLocationTracking();
-    }
-  }, [pickupRequest?.status]);
+    onStatusUpdateRef.current = onStatusUpdate;
+  }, [onStatusUpdate]);
 
-  const startLocationTracking = () => {
+  useEffect(() => {
+    if (
+      pickupRequest?.status !== "en_route" ||
+      user?.role !== "donor" ||
+      !navigator.geolocation
+    ) {
+      return;
+    }
+
     setIsTracking(true);
 
     const watchId = navigator.geolocation.watchPosition(
-      (position) => {
+      async (position) => {
         const location = {
           latitude: position.coords.latitude,
           longitude: position.coords.longitude,
         };
         setCurrentLocation(location);
-        updateLocation(location);
+        try {
+          const response = await fetch(
+            `/api/pickup-requests/${pickupRequest._id}`,
+            {
+              method: "PUT",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({
+                status: "en_route",
+                location,
+                message: "Location updated",
+              }),
+            }
+          );
+          if (response.ok) {
+            const result = await response.json();
+            onStatusUpdateRef.current?.(result.data);
+          }
+        } catch (error) {
+          console.error("Error updating location:", error);
+        }
       },
       (error) => {
         console.error("Location tracking error:", error);
@@ -50,36 +80,11 @@ export default function PickupTracker({ pickupRequest, user, onStatusUpdate }) {
       }
     );
 
-    return () => navigator.geolocation.clearWatch(watchId);
-  };
-
-  const updateLocation = async (location) => {
-    try {
-      const response = await fetch(
-        `/api/pickup-requests/${pickupRequest._id}`,
-        {
-          method: "PUT",
-          headers: {
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({
-            status: "en_route",
-            location: location,
-            message: "Location updated",
-          }),
-        }
-      );
-
-      if (response.ok) {
-        const result = await response.json();
-        if (onStatusUpdate) {
-          onStatusUpdate(result.data);
-        }
-      }
-    } catch (error) {
-      console.error("Error updating location:", error);
-    }
-  };
+    return () => {
+      navigator.geolocation.clearWatch(watchId);
+      setIsTracking(false);
+    };
+  }, [pickupRequest?._id, pickupRequest?.status, user?.role]);
 
   const submitRating = async () => {
     if (!ratingValue) return;
@@ -103,15 +108,20 @@ export default function PickupTracker({ pickupRequest, user, onStatusUpdate }) {
         setRatingOpen(false);
         setRatingValue(0);
         setRatingReview("");
+        toast("Rating submitted successfully!", "success");
+      } else {
+        toast("Failed to submit rating", "error");
       }
     } catch (error) {
       console.error("Error submitting rating:", error);
+      toast("An error occurred while submitting the rating", "error");
     } finally {
       setSubmittingRating(false);
     }
   };
 
   const updateStatus = async (status, message) => {
+    setPendingAction(status);
     try {
       const response = await fetch(
         `/api/pickup-requests/${pickupRequest._id}`,
@@ -133,9 +143,16 @@ export default function PickupTracker({ pickupRequest, user, onStatusUpdate }) {
         if (onStatusUpdate) {
           onStatusUpdate(result.data);
         }
+        toast(`Status updated to ${status.replace("_", " ")}`, "success");
+      } else {
+        const err = await response.json().catch(() => ({}));
+        toast(err.message || "Failed to update status", "error");
       }
     } catch (error) {
       console.error("Error updating status:", error);
+      toast("An error occurred while updating status", "error");
+    } finally {
+      setPendingAction(null);
     }
   };
 
@@ -244,9 +261,14 @@ export default function PickupTracker({ pickupRequest, user, onStatusUpdate }) {
               onClick={() =>
                 updateStatus("cancelled", "Recipient cancelled the pickup")
               }
+              disabled={pendingAction === "cancelled"}
               className="bg-red-600 hover:bg-red-700"
             >
-              Cancel Request
+              {pendingAction === "cancelled" ? (
+                <><Loader2 className="w-4 h-4 animate-spin" /> Cancelling…</>
+              ) : (
+                "Cancel Request"
+              )}
             </Button>
           )}
           {pickupRequest.status === "completed" &&
@@ -271,17 +293,27 @@ export default function PickupTracker({ pickupRequest, user, onStatusUpdate }) {
                 onClick={() =>
                   updateStatus("accepted", "Pickup request accepted")
                 }
+                disabled={!!pendingAction}
                 className="bg-green-600 hover:bg-green-700"
               >
-                Accept Request
+                {pendingAction === "accepted" ? (
+                  <><Loader2 className="w-4 h-4 animate-spin" /> Accepting…</>
+                ) : (
+                  "Accept Request"
+                )}
               </Button>
               <Button
                 onClick={() =>
                   updateStatus("rejected", "Pickup request rejected")
                 }
+                disabled={!!pendingAction}
                 className="bg-red-600 hover:bg-red-700"
               >
-                Reject Request
+                {pendingAction === "rejected" ? (
+                  <><Loader2 className="w-4 h-4 animate-spin" /> Rejecting…</>
+                ) : (
+                  "Reject Request"
+                )}
               </Button>
             </div>
           )}
@@ -289,9 +321,14 @@ export default function PickupTracker({ pickupRequest, user, onStatusUpdate }) {
           {pickupRequest.status === "accepted" && (
             <Button
               onClick={() => updateStatus("en_route", "Starting pickup")}
+              disabled={pendingAction === "en_route"}
               className="bg-blue-600 hover:bg-blue-700"
             >
-              Start Pickup
+              {pendingAction === "en_route" ? (
+                <><Loader2 className="w-4 h-4 animate-spin" /> Starting…</>
+              ) : (
+                "Start Pickup"
+              )}
             </Button>
           )}
 

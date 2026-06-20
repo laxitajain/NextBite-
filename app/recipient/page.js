@@ -6,7 +6,9 @@ import FoodListingCard from "../_components/FoodListingCard";
 import FoodMap from "../_components/FoodMap";
 import PickupTracker from "../_components/PickupTracker";
 import Button from "../_components/Button";
-import { Search, MapPin, List, Grid } from "lucide-react";
+import { CardGridSkeleton, EmptyState } from "../_components/Skeleton";
+import Link from "next/link";
+import { Search, MapPin, List, Grid, MapPinOff } from "lucide-react";
 
 const sectionCard =
   "bg-white/80 backdrop-blur-sm border border-accent-rust/60 rounded-2xl shadow-sm p-6";
@@ -22,6 +24,7 @@ export default function RecipientPage() {
   const [listings, setListings] = useState([]);
   const [loading, setLoading] = useState(true);
   const [userLocation, setUserLocation] = useState(null);
+  const [locationStatus, setLocationStatus] = useState("pending"); // pending | granted | denied
   const [viewMode, setViewMode] = useState("grid");
   const [filters, setFilters] = useState({
     search: "",
@@ -50,17 +53,21 @@ export default function RecipientPage() {
 
   const requestLocation = () => {
     if (navigator.geolocation) {
+      setLocationStatus("pending");
       navigator.geolocation.getCurrentPosition(
         (position) => {
           setUserLocation({
             lat: position.coords.latitude,
             lng: position.coords.longitude,
           });
+          setLocationStatus("granted");
         },
         () => {
-          setUserLocation({ lat: 19.076, lng: 72.8777 });
+          setLocationStatus("denied");
         }
       );
+    } else {
+      setLocationStatus("denied");
     }
   };
 
@@ -153,9 +160,9 @@ export default function RecipientPage() {
           <h1 className="text-2xl font-anton text-primary mb-4">
             Please log in to browse food listings
           </h1>
-          <Button onClick={() => (window.location.href = "/login")}>
-            Login
-          </Button>
+          <Link href="/login">
+            <Button>Login</Button>
+          </Link>
         </div>
       </div>
     );
@@ -324,10 +331,22 @@ export default function RecipientPage() {
             </div>
           </div>
 
-          {loading ? (
-            <div className="flex items-center justify-center py-12">
-              <div className="spinner"></div>
+          {/* Location status banner */}
+          {locationStatus === "denied" && (
+            <div className="mb-6 p-4 bg-accent-mango/60 border border-secondary/40 rounded-2xl flex items-start gap-3">
+              <MapPinOff className="w-5 h-5 text-secondary mt-0.5 shrink-0" />
+              <div>
+                <p className="text-sm font-semibold text-primary">Location access denied</p>
+                <p className="text-sm text-primary/70">Results are not sorted by distance. Enable location in your browser settings for distance-based results.</p>
+              </div>
+              <Button onClick={requestLocation} className="!w-auto !text-xs shrink-0">
+                Retry
+              </Button>
             </div>
+          )}
+
+          {loading ? (
+            <CardGridSkeleton count={6} />
           ) : (
             <>
               {viewMode === "map" && (
@@ -363,29 +382,26 @@ export default function RecipientPage() {
               )}
 
               {filteredListings.length === 0 && !loading && (
-                <div className={`${sectionCard} text-center py-12`}>
-                  <div className="text-6xl mb-4">🍽️</div>
-                  <h3 className="text-xl font-anton text-primary mb-2">
-                    No listings found
-                  </h3>
-                  <p className="text-primary/70 mb-4">
-                    Try adjusting your search criteria or expanding your search
-                    radius.
-                  </p>
-                  <Button
-                    onClick={() =>
-                      setFilters({
-                        search: "",
-                        foodType: "",
-                        radius: 10,
-                        maxPrice: "",
-                      })
-                    }
-                    className="!w-auto"
-                  >
-                    Clear Filters
-                  </Button>
-                </div>
+                <EmptyState
+                  icon="🍽️"
+                  title="No listings found"
+                  message="Try adjusting your search criteria or expanding your search radius."
+                  action={
+                    <Button
+                      onClick={() =>
+                        setFilters({
+                          search: "",
+                          foodType: "",
+                          radius: 10,
+                          maxPrice: "",
+                        })
+                      }
+                      className="!w-auto"
+                    >
+                      Clear Filters
+                    </Button>
+                  }
+                />
               )}
             </>
           )}

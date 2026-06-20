@@ -2,9 +2,14 @@ import { connectMongoDB } from "@/lib/mongodb";
 import User from "@/models/user";
 import Donor from "@/models/donor";
 import Recipient from "@/models/recipient";
+import { authError, getRequestUser } from "@/lib/auth";
 
 export async function GET(request, { params }) {
   const { email } = params;
+
+  const sessionUser = await getRequestUser(request);
+  if (!sessionUser) return authError();
+  if (sessionUser.email !== decodeURIComponent(email)) return authError(403);
 
   await connectMongoDB();
 
@@ -18,7 +23,9 @@ export async function GET(request, { params }) {
       );
     }
 
-    return Response.json({ success: true, data: user });
+    const safeUser = user.toObject();
+    delete safeUser.password;
+    return Response.json({ success: true, data: safeUser });
   } catch (error) {
     console.error(error);
     return Response.json(
@@ -30,6 +37,10 @@ export async function GET(request, { params }) {
 
 export async function PUT(request, { params }) {
   const { email } = params;
+
+  const sessionUser = await getRequestUser(request);
+  if (!sessionUser) return authError();
+  if (sessionUser.email !== decodeURIComponent(email)) return authError(403);
 
   await connectMongoDB();
 
@@ -101,7 +112,11 @@ export async function PUT(request, { params }) {
 
     return Response.json({
       success: true,
-      data: updated,
+      data: (() => {
+        const safeUser = updated.toObject();
+        delete safeUser.password;
+        return safeUser;
+      })(),
       message: "Profile updated successfully",
     });
   } catch (error) {

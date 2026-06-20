@@ -2,16 +2,23 @@
 
 import { useState, useEffect, useCallback } from "react";
 import { useSession } from "next-auth/react";
+import { useRouter } from "next/navigation";
 import DonorForm from "../_components/DonorForm";
 import DonorListingRow from "../_components/DonorListingRow";
 import PickupTracker from "../_components/PickupTracker";
+import ConfirmDialog from "../_components/ConfirmDialog";
 import Button from "../_components/Button";
+import { useToast } from "../_components/ToastProvider";
+import { RowListSkeleton, EmptyState } from "../_components/Skeleton";
+import Link from "next/link";
 
 const sectionCard =
   "bg-white/80 backdrop-blur-sm border border-accent-rust/60 rounded-2xl shadow-sm p-6";
 
 export default function DonorPage() {
   const { data: session } = useSession();
+  const router = useRouter();
+  const { toast } = useToast();
   const [user, setUser] = useState(null);
   const [activeTab, setActiveTab] = useState("create");
 
@@ -22,6 +29,8 @@ export default function DonorPage() {
   const [requests, setRequests] = useState([]);
   const [requestsLoading, setRequestsLoading] = useState(false);
   const [selectedRequest, setSelectedRequest] = useState(null);
+  const [deleteTarget, setDeleteTarget] = useState(null);
+  const [deleting, setDeleting] = useState(false);
 
   const fetchUserProfile = useCallback(async () => {
     if (!session?.user?.email) return;
@@ -81,21 +90,26 @@ export default function DonorPage() {
     if (activeTab === "requests") fetchRequests();
   }, [activeTab, fetchMyListings, fetchRequests]);
 
-  const handleDelete = async (listing) => {
-    if (!confirm(`Delete "${listing.title}"? This cannot be undone.`)) return;
+  const handleDeleteConfirm = async () => {
+    if (!deleteTarget) return;
+    setDeleting(true);
     try {
-      const response = await fetch(`/api/listings/${listing._id}`, {
+      const response = await fetch(`/api/listings/${deleteTarget._id}`, {
         method: "DELETE",
       });
       const result = await response.json();
       if (result.success) {
-        setListings((prev) => prev.filter((l) => l._id !== listing._id));
+        setListings((prev) => prev.filter((l) => l._id !== deleteTarget._id));
+        toast("Listing deleted", "success");
       } else {
-        alert("Failed to delete: " + result.message);
+        toast("Failed to delete: " + result.message, "error");
       }
     } catch (error) {
       console.error("Error deleting listing:", error);
-      alert("Failed to delete listing");
+      toast("Failed to delete listing", "error");
+    } finally {
+      setDeleting(false);
+      setDeleteTarget(null);
     }
   };
 
@@ -118,9 +132,9 @@ export default function DonorPage() {
           <h1 className="text-2xl font-anton text-primary mb-4">
             Please log in to access donor features
           </h1>
-          <Button onClick={() => (window.location.href = "/login")}>
-            Login
-          </Button>
+          <Link href="/login">
+            <Button>Login</Button>
+          </Link>
         </div>
       </div>
     );
@@ -193,13 +207,18 @@ export default function DonorPage() {
                   My Food Listings
                 </h2>
                 {listingsLoading ? (
-                  <div className="flex items-center justify-center py-12">
-                    <div className="spinner"></div>
-                  </div>
+                  <RowListSkeleton count={3} />
                 ) : listings.length === 0 ? (
-                  <p className="text-primary/70">
-                    You haven&apos;t created any listings yet.
-                  </p>
+                  <EmptyState
+                    icon="🍲"
+                    title="No listings yet"
+                    message="You haven't created any food listings yet. Share your surplus food to get started!"
+                    action={
+                      <Button onClick={() => setActiveTab("create")} className="!w-auto">
+                        Create your first listing
+                      </Button>
+                    }
+                  />
                 ) : (
                   <div className="space-y-3">
                     {listings.map((l) => (
@@ -207,7 +226,7 @@ export default function DonorPage() {
                         key={l._id}
                         listing={l}
                         onEdit={setEditingListing}
-                        onDelete={handleDelete}
+                        onDelete={setDeleteTarget}
                       />
                     ))}
                   </div>
@@ -293,6 +312,15 @@ export default function DonorPage() {
           </div>
         )}
       </div>
+
+      <ConfirmDialog
+        open={Boolean(deleteTarget)}
+        title="Delete listing"
+        message={`Delete "${deleteTarget?.title}"? This cannot be undone.`}
+        pending={deleting}
+        onConfirm={handleDeleteConfirm}
+        onCancel={() => setDeleteTarget(null)}
+      />
     </div>
   );
 }

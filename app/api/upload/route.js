@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { v2 as cloudinary } from "cloudinary";
+import { authError, getRequestUser } from "@/lib/auth";
 
 cloudinary.config({
   cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
@@ -17,6 +18,9 @@ const MAX_SIZE = 5 * 1024 * 1024;
 
 export async function POST(request) {
   try {
+    const sessionUser = await getRequestUser(request);
+    if (!sessionUser) return authError();
+
     const formData = await request.formData();
     const file = formData.get("file");
 

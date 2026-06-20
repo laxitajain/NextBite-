@@ -3,27 +3,29 @@ import PickupRequest from "@/models/pickupRequest";
 import FoodListing from "@/models/foodListing";
 import { createNotification } from "@/lib/notify";
 import { NextResponse } from "next/server";
+import { authError, getRequestUser, hasRole } from "@/lib/auth";
+import {
+  ACTIVE_PICKUP_STATUSES,
+  isListingExpired,
+} from "@/lib/pickup-policy.mjs";
 
 // GET - Fetch pickup requests
 export async function GET(request) {
   try {
+    const sessionUser = await getRequestUser(request);
+    if (!sessionUser) return authError();
+
     await connectMongoDB();
 
     const { searchParams } = new URL(request.url);
-    const userId = searchParams.get("userId");
-    const role = searchParams.get("role"); // 'donor' or 'recipient'
     const status = searchParams.get("status");
     const page = parseInt(searchParams.get("page")) || 1;
     const limit = parseInt(searchParams.get("limit")) || 20;
 
-    let query = {};
-
-    // Filter by user role
-    if (role === "donor") {
-      query.donorId = userId;
-    } else if (role === "recipient") {
-      query.recipientId = userId;
-    }
+    const query =
+      sessionUser.role === "donor"
+        ? { donorId: sessionUser.id }
+        : { recipientId: sessionUser.id };
 
     // Filter by status
     if (status) {
@@ -64,9 +66,12 @@ export async function GET(request) {
 // POST - Create pickup request
 export async function POST(request) {
   try {
+    const sessionUser = await getRequestUser(request);
+    if (!sessionUser) return authError();
+    if (!hasRole(sessionUser, "recipient")) return authError(403);
+
     const {
       listingId,
-      recipientId,
       message,
       requestedPickupTime,
       recipientLocation,
@@ -90,6 +95,27 @@ export async function POST(request) {
       );
     }
 
+    if (isListingExpired(listing)) {
+      listing.status = "expired";
+      await listing.save();
+      return NextResponse.json(
+        { success: false, message: "This listing has expired" },
+        { status: 410 }
+      );
+    }
+
+    const existingRequest = await PickupRequest.findOne({
+      listingId,
+      recipientId: sessionUser.id,
+      status: { $in: ACTIVE_PICKUP_STATUSES },
+    });
+    if (existingRequest) {
+      return NextResponse.json(
+        { success: false, message: "You already have an active request for this listing" },
+        { status: 409 }
+      );
+    }
+
     const geoCoords = listing.location?.coordinates?.coordinates || [];
     const donorLocation = {
       coordinates: {
@@ -102,7 +128,7 @@ export async function POST(request) {
     const pickupRequest = await PickupRequest.create({
       listingId,
       donorId: listing.donorId,
-      recipientId,
+      recipientId: sessionUser.id,
       message,
       requestedPickupTime: new Date(requestedPickupTime),
       donorLocation,
@@ -136,6 +162,15 @@ export async function POST(request) {
       { status: 201 }
     );
   } catch (error) {
+    if (error?.code === 11000) {
+      return NextResponse.json(
+        {
+          success: false,
+          message: "You already have an active request for this listing",
+        },
+        { status: 409 }
+      );
+    }
     console.error("Error creating pickup request:", error);
     return NextResponse.json(
       { success: false, message: "Failed to create pickup request" },

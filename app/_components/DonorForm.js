@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from "react";
 import Button from "./Button";
+import { useToast } from "./ToastProvider";
 
 const FOOD_TYPES = [
   "Vegetarian",
@@ -63,6 +64,7 @@ function coordsFromSource(c) {
 
 export default function DonorForm({ user, listing = null, onDone }) {
   const isEdit = Boolean(listing);
+  const { toast } = useToast();
   const initialCoords = coordsFromSource(
     listing?.location?.coordinates || user?.coordinates
   );
@@ -156,7 +158,7 @@ export default function DonorForm({ user, listing = null, onDone }) {
         if (result.success && result.url) {
           uploaded.push(result.url);
         } else {
-          alert("Upload failed: " + (result.message || "unknown"));
+          toast("Upload failed: " + (result.message || "unknown"), "error");
         }
       }
       if (uploaded.length > 0) {
@@ -167,7 +169,7 @@ export default function DonorForm({ user, listing = null, onDone }) {
       }
     } catch (err) {
       console.error("Image upload error:", err);
-      alert("An error occurred while uploading");
+      toast("An error occurred while uploading", "error");
     } finally {
       setUploadingImage(false);
       e.target.value = "";
@@ -262,10 +264,11 @@ export default function DonorForm({ user, listing = null, onDone }) {
       const result = await response.json();
 
       if (result.success) {
-        alert(
+        toast(
           isEdit
             ? "Food listing updated successfully!"
-            : "Food listing created successfully!"
+            : "Food listing created successfully!",
+          "success"
         );
         if (!isEdit) {
           setFormData({
@@ -292,14 +295,15 @@ export default function DonorForm({ user, listing = null, onDone }) {
         }
         onDone?.(result.data);
       } else {
-        alert(
+        toast(
           (isEdit ? "Failed to update listing: " : "Failed to create listing: ") +
-            result.message
+            result.message,
+          "error"
         );
       }
     } catch (error) {
       console.error("Error saving listing:", error);
-      alert("An error occurred while saving the listing");
+      toast("An error occurred while saving the listing", "error");
     } finally {
       setIsSubmitting(false);
     }

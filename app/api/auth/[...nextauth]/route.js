@@ -15,7 +15,9 @@ export const authOptions = {
 
         try {
           await connectMongoDB();
-          const user = await User.findOne({ email });
+          const user = await User.findOne({
+            email: email?.trim().toLowerCase(),
+          });
 
           if (!user) {
             return null;

@@ -1,18 +1,14 @@
 import { connectMongoDB } from "@/lib/mongodb";
 import Notification from "@/models/notification";
 import { NextResponse } from "next/server";
+import { authError, getRequestUser } from "@/lib/auth";
 
 // PUT - Mark all notifications as read for a user
 export async function PUT(request) {
   try {
-    const { userId } = await request.json();
-
-    if (!userId) {
-      return NextResponse.json(
-        { success: false, message: "User ID is required" },
-        { status: 400 }
-      );
-    }
+    const sessionUser = await getRequestUser(request);
+    if (!sessionUser) return authError();
+    const userId = sessionUser.id;
 
     await connectMongoDB();
 

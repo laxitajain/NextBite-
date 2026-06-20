@@ -10,7 +10,9 @@ import {
   Heart,
   Star,
 } from "lucide-react";
+import { useRouter } from "next/navigation";
 import Button from "./Button";
+import { useToast } from "./ToastProvider";
 
 const STATUS_STYLE = {
   available: "bg-accent-mango text-primary",
@@ -22,6 +24,10 @@ const STATUS_STYLE = {
 
 export default function FoodListingCard({ listing, user, onRequestPickup }) {
   const [isRequesting, setIsRequesting] = useState(false);
+  const [pickupMessage, setPickupMessage] = useState("");
+  const [showMessageBox, setShowMessageBox] = useState(false);
+  const router = useRouter();
+  const { toast } = useToast();
 
   const formatDate = (dateString) => {
     const date = new Date(dateString);
@@ -34,13 +40,18 @@ export default function FoodListingCard({ listing, user, onRequestPickup }) {
 
   const handleRequestPickup = async () => {
     if (!user) {
-      alert("Please log in to request pickup");
+      toast("Please log in to request pickup", "error");
+      router.push("/login");
+      return;
+    }
+
+    // Show inline message box first time
+    if (!showMessageBox) {
+      setShowMessageBox(true);
       return;
     }
 
     setIsRequesting(true);
-
-    const message = prompt("Add a message for the donor (optional):");
 
     try {
       const response = await fetch("/api/pickup-requests", {
@@ -51,7 +62,7 @@ export default function FoodListingCard({ listing, user, onRequestPickup }) {
         body: JSON.stringify({
           listingId: listing._id,
           recipientId: user._id,
-          message: message || "",
+          message: pickupMessage || "",
           requestedPickupTime: listing.pickupTime,
           recipientLocation: {
             coordinates: user.coordinates || { latitude: 0, longitude: 0 },
@@ -63,16 +74,18 @@ export default function FoodListingCard({ listing, user, onRequestPickup }) {
       const result = await response.json();
 
       if (result.success) {
-        alert("Pickup request sent successfully!");
+        toast("Pickup request sent successfully!", "success");
+        setShowMessageBox(false);
+        setPickupMessage("");
         if (onRequestPickup) {
           onRequestPickup(result.data);
         }
       } else {
-        alert("Failed to send pickup request: " + result.message);
+        toast(result.message || "Failed to send pickup request", "error");
       }
     } catch (error) {
       console.error("Error requesting pickup:", error);
-      alert("An error occurred while sending the request");
+      toast("An error occurred while sending the request", "error");
     } finally {
       setIsRequesting(false);
     }
@@ -231,8 +244,43 @@ export default function FoodListingCard({ listing, user, onRequestPickup }) {
           </div>
         )}
 
+        {/* Inline message box for pickup request */}
+        {showMessageBox && (
+          <div className="mb-4 p-3 bg-accent-light border border-accent-rust rounded-xl space-y-2">
+            <label className="block text-sm font-semibold text-primary/80">
+              Add a message for the donor (optional)
+            </label>
+            <textarea
+              value={pickupMessage}
+              onChange={(e) => setPickupMessage(e.target.value)}
+              rows={2}
+              className="w-full px-3 py-2 rounded-xl border border-accent-rust bg-white text-primary placeholder:text-primary/40 text-sm focus:outline-none focus:ring-2 focus:ring-secondary focus:border-secondary"
+              placeholder="e.g., I can pick up between 2-4 PM…"
+            />
+            <div className="flex gap-2">
+              <Button
+                onClick={handleRequestPickup}
+                disabled={isRequesting}
+                className="!w-auto flex-1 !text-sm"
+              >
+                {isRequesting ? "Sending…" : "Send Request"}
+              </Button>
+              <button
+                type="button"
+                onClick={() => {
+                  setShowMessageBox(false);
+                  setPickupMessage("");
+                }}
+                className="px-3 py-1 text-sm border border-accent-rust rounded-full text-primary hover:bg-white transition"
+              >
+                Cancel
+              </button>
+            </div>
+          </div>
+        )}
+
         <div className="flex gap-2">
-          {listing.status === "available" && (
+          {listing.status === "available" && !showMessageBox && (
             <Button
               onClick={handleRequestPickup}
               disabled={isRequesting}

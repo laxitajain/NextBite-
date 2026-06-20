@@ -1,12 +1,15 @@
-function Button({
+import { forwardRef } from "react";
+
+const Button = forwardRef(function Button({
   children,
   type = "button",
   onClick = null,
   className = "",
   disabled = false,
-}) {
+}, ref) {
   return (
     <button
+      ref={ref}
       onClick={onClick}
       type={type}
       disabled={disabled}
@@ -17,6 +20,8 @@ function Button({
       {children}
     </button>
   );
-}
+});
+
+Button.displayName = "Button";
 
 export default Button;

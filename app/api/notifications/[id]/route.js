@@ -1,14 +1,21 @@
 import { connectMongoDB } from "@/lib/mongodb";
 import Notification from "@/models/notification";
 import { NextResponse } from "next/server";
+import { authError, getRequestUser } from "@/lib/auth";
 
 // GET - Fetch single notification
 export async function GET(request, { params }) {
   try {
+    const sessionUser = await getRequestUser(request);
+    if (!sessionUser) return authError();
+
     const { id } = params;
     await connectMongoDB();
 
-    const notification = await Notification.findById(id);
+    const notification = await Notification.findOne({
+      _id: id,
+      userId: sessionUser.id,
+    });
 
     if (!notification) {
       return NextResponse.json(
@@ -33,8 +40,12 @@ export async function GET(request, { params }) {
 // PUT - Update notification
 export async function PUT(request, { params }) {
   try {
+    const sessionUser = await getRequestUser(request);
+    if (!sessionUser) return authError();
+
     const { id } = params;
-    const updates = await request.json();
+    const { read } = await request.json();
+    const updates = { read: Boolean(read) };
 
     await connectMongoDB();
 
@@ -43,10 +54,11 @@ export async function PUT(request, { params }) {
       updates.readAt = new Date();
     }
 
-    const notification = await Notification.findByIdAndUpdate(id, updates, {
-      new: true,
-      runValidators: true,
-    });
+    const notification = await Notification.findOneAndUpdate(
+      { _id: id, userId: sessionUser.id },
+      updates,
+      { new: true, runValidators: true }
+    );
 
     if (!notification) {
       return NextResponse.json(
@@ -72,10 +84,16 @@ export async function PUT(request, { params }) {
 // DELETE - Delete notification
 export async function DELETE(request, { params }) {
   try {
+    const sessionUser = await getRequestUser(request);
+    if (!sessionUser) return authError();
+
     const { id } = params;
     await connectMongoDB();
 
-    const notification = await Notification.findByIdAndDelete(id);
+    const notification = await Notification.findOneAndDelete({
+      _id: id,
+      userId: sessionUser.id,
+    });
 
     if (!notification) {
       return NextResponse.json(

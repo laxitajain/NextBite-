@@ -3,10 +3,20 @@ import PickupRequest from "@/models/pickupRequest";
 import FoodListing from "@/models/foodListing";
 import { createNotification } from "@/lib/notify";
 import { NextResponse } from "next/server";
+import mongoose from "mongoose";
+import { authError, getRequestUser, owns } from "@/lib/auth";
+import {
+  canSubmitRating,
+  canTransition,
+  shouldReopenListing,
+} from "@/lib/pickup-policy.mjs";
 
 // GET - Fetch single pickup request
 export async function GET(request, { params }) {
   try {
+    const sessionUser = await getRequestUser(request);
+    if (!sessionUser) return authError();
+
     const { id } = params;
     await connectMongoDB();
 
@@ -20,6 +30,13 @@ export async function GET(request, { params }) {
         { success: false, message: "Pickup request not found" },
         { status: 404 }
       );
+    }
+
+    if (
+      !owns(sessionUser, pickupRequest.donorId?._id) &&
+      !owns(sessionUser, pickupRequest.recipientId?._id)
+    ) {
+      return authError(403);
     }
 
     return NextResponse.json({
@@ -38,6 +55,9 @@ export async function GET(request, { params }) {
 // PUT - Update pickup request status or submit ratings
 export async function PUT(request, { params }) {
   try {
+    const sessionUser = await getRequestUser(request);
+    if (!sessionUser) return authError();
+
     const { id } = params;
     const {
       status,
@@ -46,10 +66,49 @@ export async function PUT(request, { params }) {
       location,
       rating,
       review,
-      ratingRole, // "recipient" | "donor"
     } = await request.json();
 
     await connectMongoDB();
+
+    const existing = await PickupRequest.findById(id);
+    if (!existing) {
+      return NextResponse.json(
+        { success: false, message: "Pickup request not found" },
+        { status: 404 }
+      );
+    }
+
+    const isDonor = owns(sessionUser, existing.donorId);
+    const isRecipient = owns(sessionUser, existing.recipientId);
+    if (!isDonor && !isRecipient) return authError(403);
+
+    if (rating) {
+      const existingRating = isDonor
+        ? existing.completionRating?.donorRating
+        : existing.completionRating?.recipientRating;
+      if (!canSubmitRating({ status: existing.status, existingRating })) {
+        return NextResponse.json(
+          {
+            success: false,
+            message:
+              existing.status === "completed"
+                ? "You have already rated this pickup"
+                : "Ratings are only available after pickup",
+          },
+          { status: 409 }
+        );
+      }
+    }
+
+    if (status) {
+      const role = isDonor ? "donor" : "recipient";
+      if (!canTransition(role, existing.status, status)) {
+        return NextResponse.json(
+          { success: false, message: "That pickup status change is not allowed" },
+          { status: 409 }
+        );
+      }
+    }
 
     const updateData = {};
     const trackingStatuses = ["en_route", "arrived", "delayed"];
@@ -72,21 +131,63 @@ export async function PUT(request, { params }) {
     }
 
     if (rating) {
-      const role = ratingRole || "recipient";
-      if (role === "recipient") {
+      if (isRecipient) {
         updateData["completionRating.recipientRating"] = rating;
         if (review) updateData["completionRating.recipientReview"] = review;
-      } else if (role === "donor") {
+      } else {
         updateData["completionRating.donorRating"] = rating;
         if (review) updateData["completionRating.donorReview"] = review;
       }
     }
 
-    const pickupRequest = await PickupRequest.findByIdAndUpdate(
-      id,
-      updateData,
-      { new: true, runValidators: true }
-    )
+    if (status === "accepted") {
+      const transaction = await mongoose.startSession();
+      try {
+        await transaction.withTransaction(async () => {
+          const reservation = await FoodListing.updateOne(
+            { _id: existing.listingId, status: "available" },
+            {
+              status: "reserved",
+              reservedBy: existing.recipientId,
+              reservedAt: new Date(),
+            },
+            { session: transaction }
+          );
+          if (!reservation.modifiedCount) {
+            const conflict = new Error("This listing has already been reserved");
+            conflict.code = "LISTING_RESERVED";
+            throw conflict;
+          }
+
+          await PickupRequest.updateOne(
+            { _id: id, status: "pending" },
+            updateData,
+            { session: transaction, runValidators: true }
+          );
+          await PickupRequest.updateMany(
+            {
+              _id: { $ne: id },
+              listingId: existing.listingId,
+              status: "pending",
+            },
+            {
+              status: "rejected",
+              message: "Another pickup request was accepted",
+            },
+            { session: transaction }
+          );
+        });
+      } finally {
+        await transaction.endSession();
+      }
+    }
+
+    const pickupRequest = await (status === "accepted"
+      ? PickupRequest.findById(id)
+      : PickupRequest.findByIdAndUpdate(id, updateData, {
+          new: true,
+          runValidators: true,
+        }))
       .populate("listingId")
       .populate("donorId", "name phone email address")
       .populate("recipientId", "name phone email address");
@@ -105,23 +206,19 @@ export async function PUT(request, { params }) {
         pickedUpAt: new Date(),
         reservedBy: null,
       });
-    } else if (status === "accepted") {
-      await FoodListing.findByIdAndUpdate(pickupRequest.listingId._id, {
-        status: "reserved",
-        reservedBy: pickupRequest.recipientId._id,
-        reservedAt: new Date(),
-      });
-    } else if (status === "rejected" || status === "cancelled") {
-      await FoodListing.findByIdAndUpdate(pickupRequest.listingId._id, {
-        status: "available",
-        reservedBy: null,
-        reservedAt: null,
-      });
+    } else if (shouldReopenListing(existing.status, status)) {
+      await FoodListing.updateOne(
+        {
+          _id: pickupRequest.listingId._id,
+          reservedBy: pickupRequest.recipientId._id,
+        },
+        { status: "available", reservedBy: null, reservedAt: null }
+      );
     }
 
     // If a recipient submitted a rating, mirror it into the listing's reviews
     // and recompute the listing's average rating.
-    if (rating && (!ratingRole || ratingRole === "recipient")) {
+    if (rating && isRecipient) {
       const listingId = pickupRequest.listingId?._id;
       if (listingId) {
         const listing = await FoodListing.findById(listingId);
@@ -198,6 +295,12 @@ export async function PUT(request, { params }) {
       message: "Pickup request updated successfully",
     });
   } catch (error) {
+    if (error?.code === "LISTING_RESERVED") {
+      return NextResponse.json(
+        { success: false, message: error.message },
+        { status: 409 }
+      );
+    }
     console.error("Error updating pickup request:", error);
     return NextResponse.json(
       { success: false, message: "Failed to update pickup request" },

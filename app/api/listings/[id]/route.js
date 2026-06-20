@@ -1,10 +1,14 @@
 import { connectMongoDB } from "@/lib/mongodb";
 import FoodListing from "@/models/foodListing";
 import { NextResponse } from "next/server";
+import { authError, getRequestUser, hasRole, owns } from "@/lib/auth";
 
 // GET - Fetch single listing
 export async function GET(request, { params }) {
   try {
+    const sessionUser = await getRequestUser(request);
+    if (!sessionUser) return authError();
+
     const { id } = params;
     await connectMongoDB();
 
@@ -36,10 +40,23 @@ export async function GET(request, { params }) {
 // PUT - Update listing
 export async function PUT(request, { params }) {
   try {
+    const sessionUser = await getRequestUser(request);
+    if (!sessionUser) return authError();
+    if (!hasRole(sessionUser, "donor")) return authError(403);
+
     const { id } = params;
     const updates = await request.json();
 
     await connectMongoDB();
+
+    const existing = await FoodListing.findById(id).select("donorId");
+    if (!existing) {
+      return NextResponse.json(
+        { success: false, message: "Listing not found" },
+        { status: 404 }
+      );
+    }
+    if (!owns(sessionUser, existing.donorId)) return authError(403);
 
     // Remove fields that shouldn't be updated directly
     delete updates.donorId;
@@ -75,10 +92,14 @@ export async function PUT(request, { params }) {
 // DELETE - Delete listing
 export async function DELETE(request, { params }) {
   try {
+    const sessionUser = await getRequestUser(request);
+    if (!sessionUser) return authError();
+    if (!hasRole(sessionUser, "donor")) return authError(403);
+
     const { id } = params;
     await connectMongoDB();
 
-    const listing = await FoodListing.findByIdAndDelete(id);
+    const listing = await FoodListing.findById(id);
 
     if (!listing) {
       return NextResponse.json(
@@ -86,6 +107,9 @@ export async function DELETE(request, { params }) {
         { status: 404 }
       );
     }
+
+    if (!owns(sessionUser, listing.donorId)) return authError(403);
+    await listing.deleteOne();
 
     return NextResponse.json({
       success: true,

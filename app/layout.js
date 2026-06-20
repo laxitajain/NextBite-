@@ -5,6 +5,7 @@ import { Noto_Sans_Avestan } from "next/font/google";
 import { Anton } from "next/font/google";
 import Footer from "./_components/Footer";
 import { AuthProvider } from "./providers";
+import { ToastProvider } from "./_components/ToastProvider";
 
 const anton = Anton({
   subsets: ["latin"],
@@ -35,12 +36,14 @@ export default function RootLayout({ children }) {
         className={`${noto.variable} ${anton.variable} font-noto bg-gradient-to-t from-[#F7EAC8] to-[#F4EDDD] min-h-screen flex flex-col antialiased relative text-primary`}
       >
         <AuthProvider>
-          <Header />
+          <ToastProvider>
+            <Header />
 
           <div className="flex-1 mt-14 px-2 pt-20 py-6 grid mb-4">
             <main className="max-w-7xl px-14  mx-auto w-full">{children}</main>
           </div>
-          <Footer />
+            <Footer />
+          </ToastProvider>
         </AuthProvider>
       </body>
     </html>

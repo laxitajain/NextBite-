@@ -6,6 +6,7 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import Image from "next/image";
 import Link from "next/link";
+import { useToast } from "./ToastProvider";
 
 export default function JoinForm() {
   const [name, setName] = useState("");
@@ -25,6 +26,7 @@ export default function JoinForm() {
   const [requirement, setRequirement] = useState("");
 
   const router = useRouter();
+  const { toast } = useToast();
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -106,7 +108,7 @@ export default function JoinForm() {
       if (res.ok) {
         const form = e.target;
         form.reset();
-        alert("You are registered successfully!");
+        toast("You are registered successfully!", "success");
         router.push("/login");
       } else {
         setError(data?.message || "User registration failed.");
