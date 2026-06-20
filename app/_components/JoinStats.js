@@ -21,8 +21,9 @@ export default function JoinStats() {
 
   return (
     <p className="mt-4 text-sm text-gray-600">
-      🌱 {servings > 0 ? `${servings.toLocaleString()} servings shared` : "Join our growing community"}
-      {users > 0 ? ` by ${users.toLocaleString()} members` : ""}.
+      🌱 {servings > 0 
+          ? `${servings.toLocaleString()} servings shared${users > 0 ? ` by ${users.toLocaleString()} members` : ""}` 
+          : `Join our growing community${users > 0 ? ` of ${users.toLocaleString()} members` : ""}`}.
     </p>
   );
 }

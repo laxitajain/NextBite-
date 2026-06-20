@@ -11,7 +11,7 @@ import {
 } from "recharts";
 import { useEffect, useState } from "react";
 
-const COLORS = ["#F59E0B", "#F472B6"];
+const COLORS = ["#F59E0B", "#D97A7A"];
 
 const barDataMonthlyDemo = [
   { month: "Jan", members: 20 },
@@ -178,7 +178,7 @@ export default function StatsSection() {
                 color: "#DFD6C4",
               }}
             />
-            <Bar dataKey="members" fill="#F472B6" radius={[6, 6, 0, 0]} />
+            <Bar dataKey="members" fill="#D97A7A" radius={[6, 6, 0, 0]} />
           </BarChart>
         </ResponsiveContainer>
       </div>

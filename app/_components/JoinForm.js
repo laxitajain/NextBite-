@@ -4,9 +4,15 @@ import Button from "./Button";
 import { benefits } from "../_lib/constants";
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import Image from "next/image";
 import Link from "next/link";
 import { useToast } from "./ToastProvider";
+import { HeartHandshake, TrendingUp, Leaf } from "lucide-react";
+
+const iconMap = {
+  HeartHandshake: HeartHandshake,
+  TrendingUp: TrendingUp,
+  Leaf: Leaf,
+};
 
 export default function JoinForm() {
   const [name, setName] = useState("");
@@ -122,45 +128,42 @@ export default function JoinForm() {
   return (
     <div className="bg-accent-mango rounded-lg p-6 shadow-md">
       <ul className="space-y-2 mb-6 text-base ">
-        {benefits.map((benefit) => (
-          <li key={benefit.description}>
-            <span className="flex font-semibold gap-x-2">
-              <Image
-                src={benefit.src}
-                alt={benefit.alt}
-                height={20}
-                width={20}
-                quality={100}
-              />
-              {benefit.description}
-            </span>
-          </li>
-        ))}
+        {benefits.map((benefit) => {
+          const IconComponent = iconMap[benefit.icon] || HeartHandshake;
+          return (
+            <li key={benefit.description}>
+              <span className="flex items-center font-semibold gap-x-3 text-primary">
+                <IconComponent className="w-5 h-5 text-secondary shrink-0" />
+                {benefit.description}
+              </span>
+            </li>
+          );
+        })}
       </ul>
       <form onSubmit={handleSubmit} className="flex flex-col gap-3">
         <input
           onChange={(e) => setName(e.target.value)}
           type="text"
           placeholder="Full Name"
-          className="w-full border p-2 rounded-xl"
+          className="w-full border p-2 rounded-xl focus:outline-none focus:ring-2 focus:ring-secondary focus:border-secondary transition-all"
         />
         <input
           onChange={(e) => setEmail(e.target.value)}
           type="text"
           placeholder="Email"
-          className="w-full border p-2 rounded-xl"
+          className="w-full border p-2 rounded-xl focus:outline-none focus:ring-2 focus:ring-secondary focus:border-secondary transition-all"
         />
         <input
           onChange={(e) => setPassword(e.target.value)}
           type="password"
           placeholder="Password"
-          className="w-full border p-2 rounded-xl"
+          className="w-full border p-2 rounded-xl focus:outline-none focus:ring-2 focus:ring-secondary focus:border-secondary transition-all"
         />
         <input
           onChange={(e) => setPhone(e.target.value)}
           type="text"
           placeholder="Phone"
-          className="w-full border p-2 rounded-xl"
+          className="w-full border p-2 rounded-xl focus:outline-none focus:ring-2 focus:ring-secondary focus:border-secondary transition-all"
         />
         <textarea
           onChange={(e) => setAddress(e.target.value)}
@@ -183,7 +186,7 @@ export default function JoinForm() {
         <select
           name="role"
           onChange={(e) => setRole(e.target.value)}
-          className="w-full border p-2 rounded"
+          className="w-full border p-2 rounded-xl bg-white text-primary focus:outline-none focus:ring-2 focus:ring-secondary focus:border-secondary transition-all"
         >
           <option value="">Select your role</option>
           <option value="donor">Donor (I often have surplus food)</option>

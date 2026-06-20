@@ -11,6 +11,8 @@ import Button from "../_components/Button";
 import { useToast } from "../_components/ToastProvider";
 import { RowListSkeleton, EmptyState } from "../_components/Skeleton";
 import Link from "next/link";
+import { PlusCircle, List, Clock, Bell } from "lucide-react";
+import { motion, AnimatePresence } from "framer-motion";
 
 const sectionCard =
   "bg-white/80 backdrop-blur-sm border border-accent-rust/60 rounded-2xl shadow-sm p-6";
@@ -156,42 +158,57 @@ export default function DonorPage() {
     { id: "requests", label: "Pickup Requests" },
   ];
 
+  const TabButton = ({ id, icon: Icon, label }) => (
+    <button
+      onClick={() => {
+        setActiveTab(id);
+        setEditingListing(null);
+        setSelectedRequest(null);
+      }}
+      className={`flex items-center gap-3 px-4 py-3 w-full rounded-xl transition font-semibold text-left ${
+        activeTab === id 
+          ? "bg-accent-mango text-primary shadow-sm border border-accent-rust/30" 
+          : "text-primary/70 hover:bg-white/60 hover:text-primary"
+      }`}
+    >
+      <Icon className={`w-5 h-5 ${activeTab === id ? "text-secondary" : ""}`} />
+      {label}
+    </button>
+  );
+
   return (
-    <div>
-      <div className="mb-8">
-        <h1 className="text-4xl md:text-5xl font-anton text-primary mb-2">
-          Welcome, {user?.name || session.user.name}!
-        </h1>
-        <p className="text-primary/70">
-          Help reduce food waste by sharing your surplus food with those in
-          need.
-        </p>
+    <div className="w-full max-w-7xl mx-auto flex flex-col lg:flex-row gap-6 items-start pt-2 md:pt-6">
+      
+      {/* Left Sidebar */}
+      <div className="w-full lg:w-1/3 xl:w-1/4 space-y-6 shrink-0">
+        <div className={`${sectionCard} p-6`}>
+          <h1 className="text-2xl font-anton text-primary mb-2">
+            Welcome, {user?.name || session.user.name?.split(' ')[0]}!
+          </h1>
+          <p className="text-sm text-primary/70 font-medium">
+            Help reduce food waste by sharing your surplus food.
+          </p>
+        </div>
+
+        <div className={`${sectionCard} p-3 flex flex-col gap-1`}>
+          <TabButton id="create" icon={PlusCircle} label="Create Listing" />
+          <TabButton id="my-listings" icon={List} label="My Listings" />
+          <TabButton id="requests" icon={Clock} label="Pickup Requests" />
+        </div>
       </div>
 
-      <div className="mb-8 border-b border-accent-rust">
-        <nav className="flex flex-wrap gap-2 md:gap-6">
-          {tabs.map((tab) => (
-            <button
-              key={tab.id}
-              onClick={() => {
-                setActiveTab(tab.id);
-                setEditingListing(null);
-                setSelectedRequest(null);
-              }}
-              className={`py-3 px-1 -mb-px border-b-2 font-semibold text-sm md:text-base transition ${
-                activeTab === tab.id
-                  ? "border-secondary text-primary"
-                  : "border-transparent text-primary/60 hover:text-primary hover:border-accent-rust"
-              }`}
-            >
-              {tab.label}
-            </button>
-          ))}
-        </nav>
-      </div>
-
-      <div>
-        {activeTab === "create" && <DonorForm user={user} />}
+      {/* Right Content */}
+      <div className="w-full lg:w-2/3 xl:w-3/4 space-y-6 overflow-hidden min-h-[60vh]">
+        <AnimatePresence mode="wait">
+          <motion.div
+            key={activeTab}
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -10 }}
+            transition={{ duration: 0.2 }}
+            className="w-full space-y-6"
+          >
+            {activeTab === "create" && <DonorForm user={user} />}
 
         {activeTab === "my-listings" && (
           <div>
@@ -311,6 +328,8 @@ export default function DonorPage() {
             </div>
           </div>
         )}
+          </motion.div>
+        </AnimatePresence>
       </div>
 
       <ConfirmDialog

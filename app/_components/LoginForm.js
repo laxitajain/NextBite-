@@ -6,7 +6,13 @@ import { useState } from "react";
 import { signIn } from "next-auth/react";
 import { useRouter } from "next/navigation";
 import Button from "./Button";
-import Image from "next/image";
+import { HeartHandshake, TrendingUp, Leaf } from "lucide-react";
+
+const iconMap = {
+  HeartHandshake: HeartHandshake,
+  TrendingUp: TrendingUp,
+  Leaf: Leaf,
+};
 
 export default function LoginForm() {
   const [email, setEmail] = useState("");
@@ -40,33 +46,30 @@ export default function LoginForm() {
     <>
       <div className="bg-accent-mango rounded-lg p-6 shadow-md">
         <ul className="space-y-2 mb-6 text-base ">
-          {benefits.map((benefit) => (
+        {benefits.map((benefit) => {
+          const IconComponent = iconMap[benefit.icon] || HeartHandshake;
+          return (
             <li key={benefit.description}>
-              <span className="flex font-semibold gap-x-2">
-                <Image
-                  src={benefit.src}
-                  alt={benefit.alt}
-                  height={20}
-                  width={20}
-                  quality={100}
-                />
+              <span className="flex items-center font-semibold gap-x-3 text-primary">
+                <IconComponent className="w-5 h-5 text-secondary shrink-0" />
                 {benefit.description}
               </span>
             </li>
-          ))}
+          );
+        })}
         </ul>
         <form onSubmit={handleSubmit} className="flex flex-col gap-3">
           <input
             onChange={(e) => setEmail(e.target.value)}
             type="email"
             placeholder="Email"
-            className="w-full border p-2 rounded-xl"
+            className="w-full border p-2 rounded-xl focus:outline-none focus:ring-2 focus:ring-secondary focus:border-secondary transition-all"
           />
           <input
             onChange={(e) => setPassword(e.target.value)}
             type="password"
             placeholder="Password"
-            className="w-full border p-2 rounded-xl"
+            className="w-full border p-2 rounded-xl focus:outline-none focus:ring-2 focus:ring-secondary focus:border-secondary transition-all"
           />
 
           <Button type="submit">

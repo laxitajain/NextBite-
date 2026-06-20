@@ -5,22 +5,16 @@ import { useSession } from "next-auth/react";
 import Image from "next/image";
 import Button from "./Button";
 import ProfileMap from "./ProfileMap";
-import { MapPin, User, Mail, Phone, Home, Edit3, Save, X, Camera } from "lucide-react";
+import { 
+  MapPin, User, Mail, Phone, Home, Edit3, Save, X, Camera, 
+  HeartHandshake, BarChart, Info, Map
+} from "lucide-react";
+import { motion, AnimatePresence } from "framer-motion";
 
 const FOOD_TYPES = [
-  "Vegetarian",
-  "Non-Vegetarian",
-  "Vegan",
-  "Gluten-Free",
-  "Dairy-Free",
-  "Packaged Food",
-  "Fresh Produce",
-  "Bakery",
-  "Beverages",
-  "Snacks",
-  "Desserts",
-  "Leftovers",
-  "Canned Food",
+  "Vegetarian", "Non-Vegetarian", "Vegan", "Gluten-Free", "Dairy-Free",
+  "Packaged Food", "Fresh Produce", "Bakery", "Beverages", "Snacks",
+  "Desserts", "Leftovers", "Canned Food"
 ];
 
 const inputBase =
@@ -32,7 +26,11 @@ const sectionCard =
 export default function ProfileCard() {
   const { data: session, update: updateSession } = useSession();
   const [user, setUser] = useState(null);
-  const [isEditing, setIsEditing] = useState(false);
+  
+  // Tab and Edit states
+  const [activeTab, setActiveTab] = useState("general");
+  const [editingSection, setEditingSection] = useState(null);
+  
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [uploading, setUploading] = useState(false);
@@ -62,18 +60,7 @@ export default function ProfileCard() {
 
       if (result.success) {
         setUser(result.data);
-        setFormData({
-          name: result.data.name || "",
-          phone: result.data.phone || "",
-          address: result.data.address || "",
-          city: result.data.city || "",
-          pincode: result.data.pincode || "",
-          coordinates: result.data.coordinates || { latitude: 0, longitude: 0 },
-          foodTypes: result.data.foodTypes || [],
-          pickupNotes: result.data.pickupNotes || "",
-          avgServings: result.data.avgServings || "",
-          image: result.data.image || null,
-        });
+        resetFormData(result.data);
       } else {
         setError("Failed to load profile data");
       }
@@ -91,18 +78,49 @@ export default function ProfileCard() {
     }
   }, [session, fetchUserProfile]);
 
+  const resetFormData = (data) => {
+    setFormData({
+      name: data.name || "",
+      phone: data.phone || "",
+      address: data.address || "",
+      city: data.city || "",
+      pincode: data.pincode || "",
+      coordinates: data.coordinates || { latitude: 0, longitude: 0 },
+      foodTypes: data.foodTypes || [],
+      pickupNotes: data.pickupNotes || "",
+      avgServings: data.avgServings || "",
+      image: data.image || null,
+    });
+  };
+
   const requestLocation = () => {
     if (!navigator.geolocation) return;
     navigator.geolocation.getCurrentPosition(
-      (position) => {
+      async (position) => {
+        const lat = position.coords.latitude;
+        const lng = position.coords.longitude;
+        
         setFormData((prev) => ({
           ...prev,
-          coordinates: {
-            latitude: position.coords.latitude,
-            longitude: position.coords.longitude,
-          },
+          coordinates: { latitude: lat, longitude: lng },
         }));
         setLocationPermission(true);
+
+        // Reverse Geocoding via Nominatim
+        try {
+          const res = await fetch(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lng}&zoom=18&addressdetails=1`);
+          const data = await res.json();
+          if (data && data.address) {
+            setFormData((prev) => ({
+              ...prev,
+              city: data.address.city || data.address.town || data.address.village || prev.city,
+              pincode: data.address.postcode || prev.pincode,
+              address: data.display_name || prev.address
+            }));
+          }
+        } catch (e) {
+          console.error("Reverse geocoding failed", e);
+        }
       },
       () => setLocationPermission(false)
     );
@@ -123,6 +141,13 @@ export default function ProfileCard() {
       const result = await res.json();
       if (result.success) {
         setFormData((prev) => ({ ...prev, image: result.url }));
+        // Instantly save the image to avoid requiring a form submit
+        await fetch(`/api/donor/${session.user.email}`, {
+          method: "PUT",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ image: result.url }),
+        });
+        await updateSession?.();
       } else {
         setError(result.message || "Upload failed");
       }
@@ -163,7 +188,7 @@ export default function ProfileCard() {
       if (result.success) {
         setSuccess("Profile updated successfully!");
         setUser(result.data);
-        setIsEditing(false);
+        setEditingSection(null);
         await updateSession?.();
         setTimeout(() => setSuccess(""), 3000);
       } else {
@@ -179,21 +204,15 @@ export default function ProfileCard() {
 
   const handleCancel = () => {
     if (!user) return;
-    setFormData({
-      name: user.name || "",
-      phone: user.phone || "",
-      address: user.address || "",
-      city: user.city || "",
-      pincode: user.pincode || "",
-      coordinates: user.coordinates || { latitude: 0, longitude: 0 },
-      foodTypes: user.foodTypes || [],
-      pickupNotes: user.pickupNotes || "",
-      avgServings: user.avgServings || "",
-      image: user.image || null,
-    });
-    setIsEditing(false);
+    resetFormData(user);
+    setEditingSection(null);
     setError("");
   };
+
+  const changeTab = (tabId) => {
+    if (editingSection) handleCancel(); // cancel edits if switching tabs
+    setActiveTab(tabId);
+  }
 
   if (loading) {
     return (
@@ -211,325 +230,346 @@ export default function ProfileCard() {
     );
   }
 
+  const TabButton = ({ id, icon: Icon, label }) => (
+    <button
+      onClick={() => changeTab(id)}
+      className={`flex items-center gap-3 px-4 py-3 w-full rounded-xl transition font-semibold text-left ${
+        activeTab === id 
+          ? "bg-accent-mango text-primary shadow-sm border border-accent-rust/30" 
+          : "text-primary/70 hover:bg-white/60 hover:text-primary"
+      }`}
+    >
+      <Icon className={`w-5 h-5 ${activeTab === id ? "text-secondary" : ""}`} />
+      {label}
+    </button>
+  );
+
+  const EditActions = ({ sectionId }) => {
+    if (editingSection !== sectionId) {
+      return (
+        <Button onClick={() => setEditingSection(sectionId)} className="!w-auto !py-1.5 !px-4 text-sm shadow-none border-accent-rust/30">
+          <Edit3 className="w-4 h-4 mr-1" /> Edit
+        </Button>
+      );
+    }
+    return (
+      <div className="flex gap-2">
+        <button
+          type="button"
+          onClick={handleCancel}
+          className="inline-flex items-center gap-1 text-sm bg-white text-primary border border-accent-rust rounded-full p-1.5 px-3 font-bold hover:bg-accent-light transition"
+        >
+          <X className="w-3 h-3" /> Cancel
+        </button>
+        <Button onClick={handleSubmit} disabled={saving} className="!w-auto !py-1.5 !px-4 text-sm">
+          <Save className="w-4 h-4 mr-1" /> {saving ? "..." : "Save"}
+        </Button>
+      </div>
+    );
+  };
+
   return (
-    <div className="max-w-5xl mx-auto">
-      {/* Header card */}
-      <div className="relative bg-accent-mango border border-accent-rust rounded-2xl shadow-sm p-6 mb-6 overflow-hidden">
-        <div className="absolute -top-10 -right-10 w-40 h-40 bg-accent-pink/40 rounded-full blur-2xl pointer-events-none" />
-        <div className="relative flex flex-col md:flex-row md:items-center md:justify-between gap-4">
-          <div className="flex items-center gap-4">
-            <div className="relative group">
-              <div className="w-16 h-16 rounded-full overflow-hidden shadow-sm bg-gradient-to-br from-accent-pink to-secondary flex items-center justify-center">
-                {formData.image ? (
-                  <Image src={formData.image} alt="Profile" width={64} height={64} className="w-full h-full object-cover" />
-                ) : (
-                  <User className="w-8 h-8 text-white" />
-                )}
-              </div>
-              {isEditing && (
-                <label className="absolute inset-0 flex items-center justify-center bg-black/40 rounded-full cursor-pointer opacity-0 group-hover:opacity-100 transition">
-                  {uploading ? (
-                    <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin" />
-                  ) : (
-                    <Camera className="w-5 h-5 text-white" />
-                  )}
-                  <input type="file" accept="image/*" className="hidden" onChange={handleImageUpload} disabled={uploading} />
-                </label>
+    <div className="w-full max-w-6xl mx-auto flex flex-col lg:flex-row gap-6 items-start">
+      
+      {/* Left Sidebar */}
+      <div className="w-full lg:w-1/3 xl:w-1/4 space-y-6 shrink-0">
+        <div className={`${sectionCard} flex flex-col items-center text-center p-8`}>
+          <div className="relative group mb-4">
+            <div className="w-24 h-24 rounded-full overflow-hidden shadow-md bg-gradient-to-br from-accent-pink to-secondary flex items-center justify-center border-4 border-white">
+              {formData.image ? (
+                <Image src={formData.image} alt="Profile" width={96} height={96} className="w-full h-full object-cover" />
+              ) : (
+                <User className="w-10 h-10 text-white" />
               )}
             </div>
-            <div>
-              <h2 className="text-2xl md:text-3xl font-anton text-primary">
-                {user.name}
-              </h2>
-              <p className="text-primary/70 text-sm">Donor Profile</p>
-            </div>
+            <label className="absolute inset-0 flex items-center justify-center bg-black/40 rounded-full cursor-pointer opacity-0 group-hover:opacity-100 transition">
+              {uploading ? (
+                <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin" />
+              ) : (
+                <Camera className="w-6 h-6 text-white" />
+              )}
+              <input type="file" accept="image/*" className="hidden" onChange={handleImageUpload} disabled={uploading} />
+            </label>
           </div>
-          <div className="flex gap-2">
-            {!isEditing ? (
-              <Button onClick={() => setIsEditing(true)}>
-                <Edit3 className="w-4 h-4" />
-                Edit Profile
-              </Button>
-            ) : (
-              <>
-                <button
-                  type="button"
-                  onClick={handleCancel}
-                  className="inline-flex items-center gap-1 text-base bg-white text-primary border border-accent-rust rounded-full p-2 px-4 font-bold hover:bg-accent-light transition"
-                >
-                  <X className="w-4 h-4" />
-                  Cancel
-                </button>
-                <Button onClick={handleSubmit} disabled={saving}>
-                  <Save className="w-4 h-4" />
-                  {saving ? "Saving..." : "Save Changes"}
-                </Button>
-              </>
-            )}
-          </div>
+          <h2 className="text-2xl font-anton text-primary">{user.name}</h2>
+          <span className="inline-block mt-2 px-3 py-1 bg-accent-rust/20 text-secondary font-bold text-xs rounded-full uppercase tracking-wider">
+            Donor
+          </span>
+        </div>
+
+        <div className={`${sectionCard} p-3 flex flex-col gap-1`}>
+          <TabButton id="general" icon={User} label="General Settings" />
+          <TabButton id="location" icon={MapPin} label="Location & Map" />
+          <TabButton id="preferences" icon={HeartHandshake} label="Preferences" />
+          <TabButton id="stats" icon={BarChart} label="My Impact" />
         </div>
       </div>
 
-      {/* Messages */}
-      {error && (
-        <div className="bg-red-50 border border-red-300 text-red-700 px-4 py-3 rounded-xl mb-4">
-          {error}
-        </div>
-      )}
-      {success && (
-        <div className="bg-green-50 border border-green-300 text-green-800 px-4 py-3 rounded-xl mb-4">
-          {success}
-        </div>
-      )}
+      {/* Right Content */}
+      <div className="w-full lg:w-2/3 xl:w-3/4 space-y-6 min-h-[60vh]">
+        
+        {/* Messages */}
+        {error && (
+          <div className="bg-red-50 border border-red-300 text-red-700 px-4 py-3 rounded-xl">
+            {error}
+          </div>
+        )}
+        {success && (
+          <div className="bg-green-50 border border-green-300 text-green-800 px-4 py-3 rounded-xl">
+            {success}
+          </div>
+        )}
 
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {/* Personal Information */}
-        <div className={sectionCard}>
-          <h3 className="text-xl font-anton mb-4 flex items-center gap-2 text-primary">
-            <User className="w-5 h-5 text-secondary" />
-            Personal Information
-          </h3>
-
-          <form onSubmit={handleSubmit} className="space-y-4">
-            <div>
-              <label className="block text-sm font-semibold text-primary/80 mb-1">
-                Full Name
-              </label>
-              <input
-                type="text"
-                value={formData.name}
-                onChange={(e) => handleInputChange("name", e.target.value)}
-                disabled={!isEditing}
-                className={inputBase}
-              />
-            </div>
-
-            <div>
-              <label className="block text-sm font-semibold text-primary/80 mb-1">
-                Email Address
-              </label>
-              <div className="relative">
-                <Mail className="w-4 h-4 text-primary/50 absolute left-3 top-1/2 -translate-y-1/2" />
-                <input
-                  type="email"
-                  value={user.email}
-                  disabled
-                  className={`${inputBase} pl-9`}
-                />
-              </div>
-              <p className="text-xs text-primary/50 mt-1">
-                Email cannot be changed
-              </p>
-            </div>
-
-            <div>
-              <label className="block text-sm font-semibold text-primary/80 mb-1">
-                Phone Number
-              </label>
-              <div className="relative">
-                <Phone className="w-4 h-4 text-primary/50 absolute left-3 top-1/2 -translate-y-1/2" />
-                <input
-                  type="tel"
-                  value={formData.phone}
-                  onChange={(e) => handleInputChange("phone", e.target.value)}
-                  disabled={!isEditing}
-                  className={`${inputBase} pl-9`}
-                />
-              </div>
-            </div>
-
-            <div>
-              <label className="block text-sm font-semibold text-primary/80 mb-1">
-                Average Servings per Donation
-              </label>
-              <input
-                type="number"
-                value={formData.avgServings}
-                onChange={(e) =>
-                  handleInputChange("avgServings", e.target.value)
-                }
-                disabled={!isEditing}
-                min="1"
-                className={inputBase}
-              />
-            </div>
-          </form>
-        </div>
-
-        {/* Location Information */}
-        <div className={sectionCard}>
-          <h3 className="text-xl font-anton mb-4 flex items-center gap-2 text-primary">
-            <MapPin className="w-5 h-5 text-secondary" />
-            Location Information
-          </h3>
-
-          <div className="space-y-4">
-            <div>
-              <label className="block text-sm font-semibold text-primary/80 mb-1">
-                Address
-              </label>
-              <div className="relative">
-                <Home className="w-4 h-4 text-primary/50 absolute left-3 top-1/2 -translate-y-1/2" />
-                <input
-                  type="text"
-                  value={formData.address}
-                  onChange={(e) =>
-                    handleInputChange("address", e.target.value)
-                  }
-                  disabled={!isEditing}
-                  className={`${inputBase} pl-9`}
-                />
-              </div>
-            </div>
-
-            <div className="grid grid-cols-2 gap-4">
+        <AnimatePresence mode="wait">
+          <motion.div
+            key={activeTab}
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -10 }}
+            transition={{ duration: 0.2 }}
+            className="w-full space-y-6"
+          >
+        {/* General Tab */}
+        {activeTab === "general" && (
+          <div className={sectionCard}>
+            <div className="flex justify-between items-center mb-6 pb-4 border-b border-accent-rust/30">
               <div>
-                <label className="block text-sm font-semibold text-primary/80 mb-1">
-                  City
-                </label>
+                <h3 className="text-2xl font-anton text-primary">Personal Information</h3>
+                <p className="text-primary/60 text-sm">Update your basic profile details</p>
+              </div>
+              <EditActions sectionId="general" />
+            </div>
+
+            <form onSubmit={handleSubmit} className="space-y-5">
+              <div>
+                <label className="block text-sm font-semibold text-primary/80 mb-1.5">Full Name</label>
                 <input
                   type="text"
-                  value={formData.city}
-                  onChange={(e) => handleInputChange("city", e.target.value)}
-                  disabled={!isEditing}
+                  value={formData.name}
+                  onChange={(e) => handleInputChange("name", e.target.value)}
+                  disabled={editingSection !== "general"}
                   className={inputBase}
                 />
               </div>
-              <div>
-                <label className="block text-sm font-semibold text-primary/80 mb-1">
-                  Pincode
-                </label>
-                <input
-                  type="number"
-                  value={formData.pincode}
-                  onChange={(e) =>
-                    handleInputChange("pincode", e.target.value)
-                  }
-                  disabled={!isEditing}
-                  className={inputBase}
-                />
-              </div>
-            </div>
-
-            {isEditing && (
-              <div>
-                <label className="block text-sm font-semibold text-primary/80 mb-2">
-                  Current Location
-                </label>
-                <div className="flex items-center gap-2 flex-wrap">
-                  <Button type="button" onClick={requestLocation}>
-                    <MapPin className="w-4 h-4" />
-                    Update Location
-                  </Button>
-                  {locationPermission && (
-                    <span className="text-sm text-green-700 font-semibold">
-                      Location updated
-                    </span>
-                  )}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+                <div>
+                  <label className="block text-sm font-semibold text-primary/80 mb-1.5">Email Address</label>
+                  <div className="relative">
+                    <Mail className="w-4 h-4 text-primary/50 absolute left-3 top-1/2 -translate-y-1/2" />
+                    <input type="email" value={user.email} disabled className={`${inputBase} pl-9 bg-stone-100 cursor-not-allowed`} />
+                  </div>
+                  <p className="text-xs text-primary/50 mt-1.5 flex items-center gap-1"><Info className="w-3 h-3"/> Email cannot be changed</p>
                 </div>
-                {(formData.coordinates.latitude !== 0 ||
-                  formData.coordinates.longitude !== 0) && (
-                  <div className="mt-2 p-2 bg-accent-light rounded-lg text-sm text-primary/80">
-                    <p>Lat: {formData.coordinates.latitude.toFixed(6)}</p>
-                    <p>Lng: {formData.coordinates.longitude.toFixed(6)}</p>
+                <div>
+                  <label className="block text-sm font-semibold text-primary/80 mb-1.5">Phone Number</label>
+                  <div className="relative">
+                    <Phone className="w-4 h-4 text-primary/50 absolute left-3 top-1/2 -translate-y-1/2" />
+                    <input
+                      type="tel"
+                      value={formData.phone}
+                      onChange={(e) => handleInputChange("phone", e.target.value)}
+                      disabled={editingSection !== "general"}
+                      className={`${inputBase} pl-9`}
+                    />
+                  </div>
+                </div>
+              </div>
+            </form>
+          </div>
+        )}
+
+        {/* Location Tab */}
+        {activeTab === "location" && (
+          <div className="space-y-6">
+            <div className={sectionCard}>
+              <div className="flex justify-between items-center mb-6 pb-4 border-b border-accent-rust/30">
+                <div>
+                  <h3 className="text-2xl font-anton text-primary">Location Information</h3>
+                  <p className="text-primary/60 text-sm">Where recipients will come to pick up food</p>
+                </div>
+                <EditActions sectionId="location" />
+              </div>
+
+              <div className="space-y-5">
+                <div>
+                  <label className="block text-sm font-semibold text-primary/80 mb-1.5">Address</label>
+                  <div className="relative">
+                    <Home className="w-4 h-4 text-primary/50 absolute left-3 top-1/2 -translate-y-1/2" />
+                    <input
+                      type="text"
+                      value={formData.address}
+                      onChange={(e) => handleInputChange("address", e.target.value)}
+                      disabled={editingSection !== "location"}
+                      className={`${inputBase} pl-9`}
+                    />
+                  </div>
+                </div>
+                <div className="grid grid-cols-2 gap-5">
+                  <div>
+                    <label className="block text-sm font-semibold text-primary/80 mb-1.5">City</label>
+                    <input
+                      type="text"
+                      value={formData.city}
+                      onChange={(e) => handleInputChange("city", e.target.value)}
+                      disabled={editingSection !== "location"}
+                      className={inputBase}
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-semibold text-primary/80 mb-1.5">Pincode</label>
+                    <input
+                      type="number"
+                      value={formData.pincode}
+                      onChange={(e) => handleInputChange("pincode", e.target.value)}
+                      disabled={editingSection !== "location"}
+                      className={inputBase}
+                    />
+                  </div>
+                </div>
+
+                {editingSection === "location" && (
+                  <div className="bg-accent-light/50 p-4 rounded-xl border border-accent-rust/40">
+                    <label className="block text-sm font-semibold text-primary mb-3">
+                      Drop a pin or find me
+                    </label>
+                    <div className="flex items-center gap-3">
+                      <Button type="button" onClick={requestLocation} className="!w-auto text-sm">
+                        <MapPin className="w-4 h-4 mr-2" /> Auto-Locate
+                      </Button>
+                      {locationPermission && (
+                        <span className="text-sm text-green-700 font-semibold bg-green-100 px-3 py-1 rounded-full border border-green-200">
+                          Location successfully pinned!
+                        </span>
+                      )}
+                    </div>
                   </div>
                 )}
               </div>
-            )}
-          </div>
-        </div>
+            </div>
 
-        {/* Map */}
-        <div className={sectionCard}>
-          <h3 className="text-xl font-anton mb-4 flex items-center gap-2 text-primary">
-            <MapPin className="w-5 h-5 text-secondary" />
-            Location Map
-          </h3>
-          <div className="h-64 rounded-xl overflow-hidden border border-accent-rust">
-            <ProfileMap
-              coordinates={formData.coordinates}
-              address={`${formData.address}, ${formData.city}, ${formData.pincode}`}
-              className="h-full"
-            />
-          </div>
-        </div>
-
-        {/* Food Preferences */}
-        <div className={sectionCard}>
-          <h3 className="text-xl font-anton mb-4 text-primary">
-            Food Types You Donate
-          </h3>
-          <div className="grid grid-cols-2 gap-2">
-            {FOOD_TYPES.map((type) => (
-              <label
-                key={type}
-                className={`flex items-center gap-2 px-3 py-2 rounded-lg border transition cursor-pointer ${
-                  formData.foodTypes.includes(type)
-                    ? "bg-accent-mango border-secondary"
-                    : "bg-white border-accent-rust hover:bg-accent-light"
-                } ${!isEditing && "cursor-default"}`}
-              >
-                <input
-                  type="checkbox"
-                  checked={formData.foodTypes.includes(type)}
-                  onChange={() => handleFoodTypeChange(type)}
-                  disabled={!isEditing}
-                  className="checkbox"
+            <div className={sectionCard}>
+              <h3 className="text-xl font-anton mb-4 flex items-center gap-2 text-primary">
+                <Map className="w-5 h-5 text-secondary" />
+                Preview Map
+              </h3>
+              <div className="h-72 rounded-xl overflow-hidden border-2 border-accent-rust/40">
+                <ProfileMap
+                  coordinates={formData.coordinates}
+                  address={`${formData.address}, ${formData.city}, ${formData.pincode}`}
+                  className="h-full w-full"
                 />
-                <span className="text-sm text-primary font-semibold">
-                  {type}
-                </span>
-              </label>
-            ))}
+              </div>
+            </div>
           </div>
-        </div>
+        )}
 
-        {/* Additional Information */}
-        <div className={`${sectionCard} lg:col-span-2`}>
-          <h3 className="text-xl font-anton mb-4 text-primary">
-            Additional Information
-          </h3>
-          <label className="block text-sm font-semibold text-primary/80 mb-1">
-            Pickup Notes
-          </label>
-          <textarea
-            value={formData.pickupNotes}
-            onChange={(e) => handleInputChange("pickupNotes", e.target.value)}
-            disabled={!isEditing}
-            rows={4}
-            className={inputBase}
-            placeholder="Special instructions for food pickup..."
-          />
-        </div>
-      </div>
+        {/* Preferences Tab */}
+        {activeTab === "preferences" && (
+          <div className="space-y-6">
+            <div className={sectionCard}>
+              <div className="flex justify-between items-center mb-6 pb-4 border-b border-accent-rust/30">
+                <div>
+                  <h3 className="text-2xl font-anton text-primary">Donation Preferences</h3>
+                  <p className="text-primary/60 text-sm">Specify what and how you donate</p>
+                </div>
+                <EditActions sectionId="preferences" />
+              </div>
 
-      {/* Stats */}
-      <div className={`${sectionCard} mt-6`}>
-        <h3 className="text-xl font-anton mb-4 text-primary">
-          Donation Statistics
-        </h3>
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-          <div className="text-center p-4 bg-accent-mango rounded-xl">
-            <div className="text-3xl font-anton text-primary">
-              {user.totalMealsShared || 0}
-            </div>
-            <div className="text-sm text-primary/70 mt-1">
-              Total Meals Shared
+              <div className="space-y-6">
+                <div>
+                  <label className="block text-sm font-semibold text-primary/80 mb-3">
+                    Typical Food Types
+                  </label>
+                  <div className="flex flex-wrap gap-2">
+                    {FOOD_TYPES.map((type) => {
+                      const isSelected = formData.foodTypes.includes(type);
+                      return (
+                        <label
+                          key={type}
+                          className={`flex items-center gap-2 px-4 py-2 rounded-full border transition ${
+                            editingSection === "preferences" ? "cursor-pointer" : "cursor-default opacity-80"
+                          } ${
+                            isSelected
+                              ? "bg-secondary/10 border-secondary text-secondary"
+                              : "bg-stone-50 border-stone-200 hover:bg-stone-100"
+                          }`}
+                        >
+                          <input
+                            type="checkbox"
+                            checked={isSelected}
+                            onChange={() => handleFoodTypeChange(type)}
+                            disabled={editingSection !== "preferences"}
+                            className="hidden"
+                          />
+                          <span className={`text-sm font-bold ${isSelected ? "text-secondary" : "text-primary/70"}`}>
+                            {type}
+                          </span>
+                        </label>
+                      );
+                    })}
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  <div>
+                    <label className="block text-sm font-semibold text-primary/80 mb-1.5">
+                      Average Servings per Listing
+                    </label>
+                    <input
+                      type="number"
+                      value={formData.avgServings}
+                      onChange={(e) => handleInputChange("avgServings", e.target.value)}
+                      disabled={editingSection !== "preferences"}
+                      min="1"
+                      className={inputBase}
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-semibold text-primary/80 mb-1.5">
+                      Pickup Notes
+                    </label>
+                    <textarea
+                      value={formData.pickupNotes}
+                      onChange={(e) => handleInputChange("pickupNotes", e.target.value)}
+                      disabled={editingSection !== "preferences"}
+                      rows={3}
+                      className={inputBase}
+                      placeholder="E.g., Call upon arrival, ring the bell..."
+                    />
+                  </div>
+                </div>
+              </div>
             </div>
           </div>
-          <div className="text-center p-4 bg-accent-rust rounded-xl">
-            <div className="text-3xl font-anton text-primary">
-              {formData.avgServings || 0}
+        )}
+
+        {/* Stats Tab */}
+        {activeTab === "stats" && (
+          <div className={sectionCard}>
+            <div className="mb-6 pb-4 border-b border-accent-rust/30">
+              <h3 className="text-2xl font-anton text-primary">My Impact</h3>
+              <p className="text-primary/60 text-sm">Your contribution to fighting food waste</p>
             </div>
-            <div className="text-sm text-primary/70 mt-1">Average Servings</div>
-          </div>
-          <div className="text-center p-4 bg-accent-pink/50 rounded-xl">
-            <div className="text-3xl font-anton text-primary">
-              {user.foodTypes?.length || 0}
+
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+              <div className="flex flex-col items-center justify-center p-8 bg-gradient-to-b from-accent-mango/50 to-white rounded-2xl border border-accent-rust/30">
+                <span className="text-5xl font-anton text-secondary mb-2">{user.totalMealsShared || 0}</span>
+                <span className="text-sm font-bold text-primary/70 uppercase tracking-wide">Meals Shared</span>
+              </div>
+              <div className="flex flex-col items-center justify-center p-8 bg-gradient-to-b from-accent-light/50 to-white rounded-2xl border border-accent-rust/30">
+                <span className="text-5xl font-anton text-primary mb-2">{formData.avgServings || 0}</span>
+                <span className="text-sm font-bold text-primary/70 uppercase tracking-wide">Avg Servings</span>
+              </div>
+              <div className="flex flex-col items-center justify-center p-8 bg-gradient-to-b from-accent-pink/20 to-white rounded-2xl border border-accent-rust/30">
+                <span className="text-5xl font-anton text-accent-pink mb-2">{user.foodTypes?.length || 0}</span>
+                <span className="text-sm font-bold text-primary/70 uppercase tracking-wide">Food Variety</span>
+              </div>
             </div>
-            <div className="text-sm text-primary/70 mt-1">Food Types</div>
           </div>
-        </div>
+        )}
+          </motion.div>
+        </AnimatePresence>
+
       </div>
     </div>
   );

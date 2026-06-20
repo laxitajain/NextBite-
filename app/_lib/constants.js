@@ -6,19 +6,16 @@ export const navLinks = [
 
 export const benefits = [
   {
-    src: "/healthy-food.png",
+    icon: "HeartHandshake",
     description: "Give or receive food in your neighborhood",
-    alt: "food",
   },
   {
-    src: "/badge (1).png",
+    icon: "TrendingUp",
     description: "Track your impact and share stories",
-    alt: "food",
   },
   {
-    src: "/support.png",
+    icon: "Leaf",
     description: "Be part of a growing zero-waste movement",
-    alt: "food",
   },
 ];
 

@@ -12,7 +12,7 @@ module.exports = {
         primary: "#480102",
         secondary: "#F59E0B",
         accent: {
-          pink: "#F472B6",
+          pink: "#D97A7A",
           rust: "#DFD6C4",
           light: "#EFEEE5",
           mango: "#F3DEAA",

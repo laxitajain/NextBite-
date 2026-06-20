@@ -16,6 +16,13 @@ function NavMobile() {
   const { data: session } = useSession();
   const router = useRouter();
 
+  const handleLinkClick = (e, href) => {
+    setOpen(false);
+    if (pathname === href) {
+      e.preventDefault();
+      window.scrollTo({ top: 0, behavior: "smooth" });
+    }
+  };
   const handleSignOut = async () => {
     await signOut({ redirect: false, callbackUrl: "/" });
     router.replace("/");
@@ -58,7 +65,7 @@ function NavMobile() {
               <li key={link.label}>
                 <Link
                   href={link.to}
-                  onClick={() => setOpen(false)}
+                  onClick={(e) => handleLinkClick(e, link.to)}
                   className={`block w-full px-4 py-3 rounded-lg transition-colors ${
                     isActive ? "" : "hover:bg-white/10"
                   }`}
@@ -73,17 +80,16 @@ function NavMobile() {
               <li>
                 <Link
                   href="/join"
-                  onClick={() => setOpen(false)}
+                  onClick={(e) => handleLinkClick(e, "/join")}
                   className="block w-full px-4 py-3 rounded-lg hover:bg-white/10"
                 >
                   Join us
                 </Link>
               </li>
               <li>
-                <Button>
-                  {" "}
-                  <Link href="/login">Log in</Link>
-                </Button>
+                <Link href="/login" onClick={(e) => handleLinkClick(e, "/login")}>
+                  <Button className="w-full">Log in</Button>
+                </Link>
               </li>
             </>
           )}
@@ -92,7 +98,7 @@ function NavMobile() {
               <li>
                 <Link
                   href={`/${session.user.role}`}
-                  onClick={() => setOpen(false)}
+                  onClick={(e) => handleLinkClick(e, `/${session.user.role}`)}
                   className="flex items-center gap-2 px-4 py-3 rounded-lg hover:bg-white/10"
                 >
                   <LayoutDashboard className="w-4 h-4" /> Dashboard
@@ -101,7 +107,7 @@ function NavMobile() {
               <li>
                 <Link
                   href={`/${session.user.role}/profile`}
-                  onClick={() => setOpen(false)}
+                  onClick={(e) => handleLinkClick(e, `/${session.user.role}/profile`)}
                   className="flex items-center gap-2 px-4 py-3 rounded-lg hover:bg-white/10"
                 >
                   <User className="w-4 h-4" /> Profile
@@ -110,7 +116,7 @@ function NavMobile() {
               <li>
                 <Link
                   href="/notifications"
-                  onClick={() => setOpen(false)}
+                  onClick={(e) => handleLinkClick(e, "/notifications")}
                   className="flex items-center gap-2 px-4 py-3 rounded-lg hover:bg-white/10"
                 >
                   <Bell className="w-4 h-4" /> Notifications

@@ -6,7 +6,7 @@ export const metadata = {
 
 function page() {
   return (
-    <div className="max-w-5xl sm:max-w-2xl mx-auto py-10 px-2 text-center">
+    <div className="max-w-4xl mx-auto py-10 px-4 sm:px-6 text-center">
       <h1 className="text-4xl mb-4 font-anton uppercase">
         Welcome Back! Keep sharing, keep saving :)
       </h1>
